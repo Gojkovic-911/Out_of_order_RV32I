@@ -41,6 +41,7 @@ begin
          end if;
       end if;
    end process;
+   
    -- Asinhrono citanje podataka iz registartske banke. Po specifikaciji nulti
    -- registar je uvek 0.
    reg_bank_read : process (rs1_address_i, rs2_address_i, reg_bank_s) is

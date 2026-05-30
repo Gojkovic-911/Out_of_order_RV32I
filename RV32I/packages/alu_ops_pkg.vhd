@@ -24,5 +24,4 @@ package alu_ops_pkg is
    constant remu_op   : std_logic_vector (4 downto 0) := "01111";  ---> reminder unsigned
    constant rems_op   : std_logic_vector (4 downto 0) := "10000";  ---> reminder signed
 
-
 end package alu_ops_pkg;

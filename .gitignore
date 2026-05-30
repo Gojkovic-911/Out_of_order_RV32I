@@ -1,0 +1,15 @@
+*.o
+*.bin
+*.vcd
+*.log
+*.jou
+*.pb
+*.bit
+*.str
+.xpr
+*.runs/
+*.cache/
+*.ip_user_files/
+*.sim/
+RISCV_project
+

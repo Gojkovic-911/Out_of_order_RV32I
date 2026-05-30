@@ -16,7 +16,6 @@ end branch_decision_unit;
 
 architecture Behavioral of branch_decision_unit is
 
-
 begin
     process (funct3_i, a_i, b_i)
     begin

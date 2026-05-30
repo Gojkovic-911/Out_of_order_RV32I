@@ -22,8 +22,6 @@ ARCHITECTURE behavioral OF ALU IS
     signal    add_res, sub_res, or_res, and_res, xor_res, res_s:  STD_LOGIC_VECTOR(WIDTH-1 DOWNTO 0);
     signal    sll_res, srl_res, sra_res: STD_LOGIC_VECTOR(WIDTH-1 DOWNTO 0);
     signal    slt_res, sltu_res: STD_LOGIC_VECTOR(WIDTH-1 DOWNTO 0);
-    signal    a_slt_s, b_slt_s:  STD_LOGIC_VECTOR(WIDTH-1 DOWNTO 0);
-    signal    slt_par : std_logic_vector(1 downto 0);
    
 begin
 

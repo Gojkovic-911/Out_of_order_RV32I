@@ -1,5 +1,6 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
+use work.alu_ops_pkg.all;
 
 entity LSU is
    generic (DATA_WIDTH : positive := 32;
@@ -18,51 +19,32 @@ entity LSU is
       data_mem_be_o     : out std_logic_vector(MEM_BYTES-1 downto 0);   -- Byte enable (store strobe)
       
       -- Control signals
-      funct3_i          : in  std_logic_vector(2 downto 0);
-      load_instr_i      : in  std_logic;
-      store_instr_i     : in  std_logic
+      lsu_subtype_i     : in  std_logic_vector(4 downto 0)
       );
 end LSU;
 
 architecture Behavioral of LSU is
-
-    type load_t is (NONE_L, LB, LH, LW, LBU, LHU);
-    type store_t is (NONE_S, SB, SH, SW);
-    
-    signal load_type_s  : load_t;
-    signal store_type_s : store_t;
     
     signal extended_load_data_s : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal data_mem_be_s        : std_logic_vector(MEM_BYTES -1 downto 0);
     signal data_mem_wdata_s     : std_logic_vector(DATA_WIDTH-1 downto 0);
     
 begin
-
+    
     data_mem_addr_o  <= data_mem_addr_i and x"FFFFFFFC";
     data_mem_wdata_o <= data_mem_wdata_s;
     data_mem_be_o    <= data_mem_be_s;
     data_mem_rdata_o <= extended_load_data_s;
+    
    
-    load_type_s <=  LB when  (load_instr_i  = '1' and funct3_i = "000") else
-                    LH  when (load_instr_i  = '1' and funct3_i = "001") else
-                    LW  when (load_instr_i  = '1' and funct3_i = "010") else
-                    LBU when (load_instr_i  = '1' and funct3_i = "100") else
-                    LHU when (load_instr_i  = '1' and funct3_i = "101") else
-                    NONE_L;
-                   
-    store_type_s <= SB  when (store_instr_i = '1' and funct3_i = "000") else
-                    SH  when (store_instr_i = '1' and funct3_i = "001") else
-                    SW  when (store_instr_i = '1' and funct3_i = "010") else
-                    NONE_S;
-                      
    -- Store instructions
-   process (store_type_s, data_mem_addr_i) is
+   process (lsu_subtype_i, data_mem_addr_i) is
    begin
    
        data_mem_be_s    <= (others => '0'); 
        data_mem_wdata_s <= (others => '0'); 
        
-       case store_type_s is
+       case lsu_subtype_i is
          when SW => 
             if (data_mem_addr_i(1 downto 0) = "00") then
                 data_mem_be_s    <= "1111";
@@ -117,12 +99,12 @@ begin
     end process;
                
    -- Load instructions
-   process (load_type_s, data_mem_addr_i, data_mem_rdata_i) is
+   process (lsu_subtype_i, data_mem_addr_i, data_mem_rdata_i) is
    begin
    
         extended_load_data_s <= (others => '0'); 
         
-        case load_type_s is
+        case lsu_subtype_i is
          when LW =>
             if (data_mem_addr_i(1 downto 0) = "00") then
                 extended_load_data_s <= data_mem_rdata_i; -- passes the read data

@@ -68,6 +68,16 @@ begin
    -- asinhrono citanje
    process(en_a_i, en_b_i, addr_a_i, addr_b_i)
    begin
+     data_a_o(31 downto 24) <= ( others => '0');
+     data_a_o(23 downto 16) <= ( others => '0');
+     data_a_o(15 downto 8)  <= ( others => '0');
+     data_a_o(7 downto 0)   <= ( others => '0');
+     
+     data_b_o(31 downto 24) <= ( others => '0');
+     data_b_o(23 downto 16) <= ( others => '0');
+     data_b_o(15 downto 8)  <= ( others => '0');
+     data_b_o(7 downto 0)   <= ( others => '0');
+     
       if(en_a_i = '1') then
          data_a_o(31 downto 24) <= ram_s(to_integer(unsigned(addr_a_i)+3));
          data_a_o(23 downto 16) <= ram_s(to_integer(unsigned(addr_a_i)+2));

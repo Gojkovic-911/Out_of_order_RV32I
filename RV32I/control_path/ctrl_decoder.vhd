@@ -1,76 +1,139 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.instr_types_pkg.all;
 
-entity ctrl_decoder is
+entity ctrl_dec is
     port (
-        --************ Opcode polje instrukcije************
-        opcode_i            : in  std_logic_vector (6 downto 0);
-        --************ Kontrolni signali*******************
-        branch_o            : out std_logic;
-        mem_to_reg_o        : out std_logic;
-        alu_src_o           : out std_logic;
-        rd_we_o             : out std_logic;
-        load_instr_o        : out std_logic;
-        store_instr_o       : out std_logic;
-        alu_2bit_op_o       : out std_logic_vector(1 downto 0);
-        rd_data_source_o    : out std_logic_vector(1 downto 0)
+        instr_i      : in  std_logic_vector(31 downto 0);
         
-        );
+        rd_we_o         : out std_logic;   -- instruction has rd
+        rs1_used_o      : out std_logic;   -- instruction 
+        rs2_used_o      : out std_logic;   
+        is_jump_o       : out std_logic;
+        
+        instr_format_o  : out std_logic_vector(2 downto 0);    -- For the immediate extension module
+        instr_type_o    : out std_logic_vector(3 downto 0);
+        
+        -- ALU
+        alu_2bit_op_o   : out std_logic_vector(1 downto 0);
+        funct3_o        : out std_logic_vector(2 downto 0);
+        funct7_o        : out std_logic_vector(6 downto 0)
+    );
 end entity;
 
-architecture behavioral of ctrl_decoder is
+architecture Behavioral of ctrl_dec is
+    
+    -- Instruction opcode constants 
+    constant OPCODE_R_TYPE : std_logic_vector(6 downto 0) := "0110011";
+    constant OPCODE_I_TYPE : std_logic_vector(6 downto 0) := "0010011";
+    constant OPCODE_LOAD   : std_logic_vector(6 downto 0) := "0000011";
+    constant OPCODE_STORE  : std_logic_vector(6 downto 0) := "0100011";
+    constant OPCODE_BRANCH : std_logic_vector(6 downto 0) := "1100011";
+    constant OPCODE_JAL    : std_logic_vector(6 downto 0) := "1101111";
+    constant OPCODE_JALR   : std_logic_vector(6 downto 0) := "1100111";
+    constant OPCODE_LUI    : std_logic_vector(6 downto 0) := "0110111";
+    constant OPCODE_AUIPC  : std_logic_vector(6 downto 0) := "0010111";
+
+    signal opcode  : std_logic_vector(6 downto 0);
+    
 begin
+    
+    opcode      <= instr_i(6 downto 0);
+    funct3_o    <= instr_i(14 downto 12);
+    funct7_o    <= instr_i(31 downto 25);
 
-   contol_dec : process(opcode_i)is
-   begin
-      --***Podrazumevane vrednost***
-      branch_o       <= '0';
-      mem_to_reg_o   <= '0';
-      alu_src_o      <= '0';
-      rd_we_o        <= '0';
-      load_instr_o   <= '0'; 
-      store_instr_o  <= '0';      
-      alu_2bit_op_o  <= "00";
-      rd_data_source_o <= "00";
-      --****************************      
-      case opcode_i(6 downto 2) is
-         when "00000" =>                -- LOAD, 5v ~ funct3
-            alu_2bit_op_o    <= "00";
-            mem_to_reg_o     <= '1';
-            alu_src_o        <= '1';
-            rd_we_o          <= '1';
-            load_instr_o     <= '1';
-         when "01000" =>                -- STORE, 3v ~ funct3
-            alu_2bit_op_o    <= "00";
-            alu_src_o        <= '1';
-            store_instr_o    <= '1';
-         when "01100" =>                -- R type, 
-            alu_2bit_op_o    <= "01";
-            rd_we_o          <= '1';
-         when "00100" =>                -- I type
-            alu_2bit_op_o    <= "10";
-            alu_src_o        <= '1';
-            rd_we_o          <= '1';
-         when "11000" =>                -- B type
-            alu_2bit_op_o    <= "00";
-            branch_o         <= '1';
-         when "11011" =>                -- J type  JAL
-            rd_data_source_o <= "01";
-            rd_we_o          <= '1';
-         when "11001" =>                -- J type  JALR
-            alu_2bit_op_o    <= "00";
-            rd_data_source_o <= "01";
-            rd_we_o          <= '1';
-         when "01101" =>                -- U type LUI
-            rd_data_source_o <= "10";
-            alu_src_o        <= '1';
-            rd_we_o          <= '1';
-         when "00101" =>                -- U type AUIPC
-            rd_data_source_o <= "11";
-            rd_we_o          <= '1';
-         when others =>
-      end case;
-   end process;
+    process(opcode) is
+    begin
+        -- Default outputs
+        rd_we_o      <= '0';
+        rs1_used_o   <= '0';
+        rs2_used_o   <= '0';
+        is_jump_o    <= '0';
+        
+        instr_format_o  <= r_format_instruction; -- no immediate
+        instr_type_o    <= (others => '0');
+        
+        alu_2bit_op_o   <= "00";
+        
+        -- Decode opcode
+        if opcode = OPCODE_R_TYPE then
+            -- R-type instructions
+            rd_we_o         <= '1';
+            rs1_used_o      <= '1';
+            rs2_used_o      <= '1';
+            
+            alu_2bit_op_o   <= "01";
+            
+            instr_format_o  <= r_format_instruction;
+            instr_type_o    <= R_TYPE;
 
-end architecture;
+        elsif opcode = OPCODE_I_TYPE then
+            -- I-type ALU immediate
+            rd_we_o         <= '1';
+            rs1_used_o      <= '1';
+            instr_format_o  <= i_format_instruction; -- I-type immediate
+            alu_2bit_op_o   <= "10";
+            instr_type_o    <= I_TYPE;
+
+        elsif opcode = OPCODE_LOAD then
+            -- Load instructions
+            rd_we_o         <= '1';
+            rs1_used_o      <= '1';
+            instr_format_o  <= i_format_instruction; -- Load immediate
+            alu_2bit_op_o   <= "00";
+            instr_type_o    <= LOAD;
+
+        elsif opcode = OPCODE_STORE then
+            -- Store instructions
+            rs1_used_o      <= '1';
+            rs2_used_o      <= '1';
+            instr_format_o  <= s_format_instruction; -- Store immediate
+            alu_2bit_op_o   <= "00";
+            instr_type_o    <= STORE;
+
+        elsif opcode = OPCODE_BRANCH then
+            -- Branch instructions
+            rs1_used_o      <= '1';
+            rs2_used_o      <= '1';
+            is_jump_o       <= '1';
+            instr_format_o  <= b_format_instruction; -- Branch immediate
+            instr_type_o    <= BRANCH;
+
+        elsif opcode = OPCODE_JAL then
+            -- JAL
+            rd_we_o         <= '1';
+            is_jump_o       <= '1';
+            instr_format_o  <= j_format_instruction; -- JAL immediate
+            instr_type_o    <= JAL;
+
+        elsif opcode = OPCODE_JALR then
+            -- JALR
+            rd_we_o         <= '1';
+            rs1_used_o      <= '1';
+            is_jump_o       <= '1';
+            instr_format_o  <= i_format_instruction; -- JALR immediate
+            alu_2bit_op_o   <= "00";
+            instr_type_o    <= JALR;
+
+        elsif opcode = OPCODE_LUI then
+            -- LUI
+            rd_we_o         <= '1';
+            instr_format_o  <= u_format_instruction; -- LUI immediate
+            alu_2bit_op_o   <= "00";
+            instr_type_o    <= LUI;
+
+        elsif opcode = OPCODE_AUIPC then
+            -- AUIPC
+            rd_we_o         <= '1';
+            instr_format_o  <= u_format_instruction; -- AUIPC immediate
+            alu_2bit_op_o   <= "00";
+            instr_type_o    <= AUIPC;
+
+        else
+            -- Unknown opcode - disable everything
+            null;
+        end if;
+    end process;
+
+end Behavioral;
