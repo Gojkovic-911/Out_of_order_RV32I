@@ -32,17 +32,16 @@ architecture Behavioral of free_list_fifo is
     function init_mem return mem_type is
         variable temp_mem : mem_type;
     begin
-        for i in 1 to DEPTH-1 loop
-            temp_mem(i).value := std_logic_vector(to_unsigned(i, DATA_WIDTH));
-            temp_mem(i).valid := '1';
+        for i in 1 to DEPTH loop
+            temp_mem(i-1).value := std_logic_vector(to_unsigned(i, DATA_WIDTH));
+            temp_mem(i-1).valid := '1';
         end loop;
-        temp_mem(0).value := (others => '0');
-        temp_mem(0).valid := '1';
         return temp_mem;
     end function;
     
-    signal mem              : mem_type := init_mem;  -- Initialize directly with all physical registers
+    signal mem   : mem_type := init_mem;  -- Initialize directly with all physical registers
     signal wr_ptr, rd_ptr   : integer range 0 to DEPTH-1 := 0;
+    signal count            : integer range 0 to DEPTH := DEPTH;  -- Start FULL (all registers available)
     signal full_s, empty_s  : std_logic;
     signal push_valid       : std_logic;
     
@@ -54,37 +53,26 @@ begin
     begin
         if rising_edge(clk) then
             if (reset = '0') then
-                -- Reset to FULL state (all but 0 physical registers free)
-                wr_ptr <= 1;
-                rd_ptr <= 1;
-                -- mem <= ( others => ( valid => '0', value => (others => '0')));
+                -- Reset to FULL state (all physical registers free)
+                wr_ptr <= 0;
+                rd_ptr <= 0;
             else
                 -- Push operation (return register to free list on commit)
-                if push = '1' and full_s = '0' and push_valid = '1' and mem(wr_ptr).valid = '0' then
+                if push = '1' and full_s = '0' and push_valid = '1' and mem(wr_ptr).valid <= '0' then
                     mem(wr_ptr).value <= push_data;
                     mem(wr_ptr).valid <= '1';
-                    
-                    if(wr_ptr = DEPTH-1) then
-                        wr_ptr  <= 1;
-                    else
-                        wr_ptr <= wr_ptr + 1;
-                    end if;    
+                    wr_ptr  <= (wr_ptr + 1) mod DEPTH;
                 end if;
                 
                 -- Pop operation (take free register for rename)
-                if pop = '1' and empty_s = '0' and mem(rd_ptr).valid = '1' then
+                if (pop = '1') and (empty_s = '0') and mem(rd_ptr).valid <= '1' then
                     mem(rd_ptr).valid <= '0';
                     rd_ptr <= (rd_ptr + 1) mod DEPTH;
-                    
-                    if(rd_ptr = DEPTH-1) then
-                        rd_ptr  <= 1;
-                    else
-                        rd_ptr <= rd_ptr + 1;
-                    end if;    
                 end if;
             end if;
         end if;
     end process;
+
 
     -- Outputs
     -- Synch read ?

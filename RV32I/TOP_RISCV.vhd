@@ -25,6 +25,7 @@ architecture structural of TOP_RISCV is
     signal instruction_s      : std_logic_vector(31 downto 0);
     
     signal decode_instr_format_s    : std_logic_vector(2 downto 0);
+    signal decode_instr_type_s      : std_logic_vector(3 downto 0);
     
     signal dispatch_instr_type_s    : std_logic_vector(3 downto 0);
     signal dispatch_instr_subtype_s  : std_logic_vector(4 downto 0);
@@ -69,6 +70,8 @@ begin
             data_mem_rdata_i         => data_mem_rdata_i,
             data_mem_be_o            => data_mem_be_o,
             
+            decode_instr_type_i      => decode_instr_type_s,
+            
             decode_instr_format_i    => decode_instr_format_s,
             
             rename_rd_we_i           => rename_rd_we_s,
@@ -103,6 +106,8 @@ begin
             
             instruction_i            => instruction_s,
             instr_format_o           => decode_instr_format_s,
+            
+            decode_instr_type_o      => decode_instr_type_s,
             
             rename_rd_we_o           => rename_rd_we_s,
             rename_rs1_used_o        => rename_rs1_used_s,

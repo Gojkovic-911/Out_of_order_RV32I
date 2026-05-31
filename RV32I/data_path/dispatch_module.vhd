@@ -27,8 +27,9 @@ entity issue_module is
         dispatch_pc_reg_i        : in  std_logic_vector(DATA_WIDTH-1 downto 0);
         
         dispatch_instr_type_i    : in  std_logic_vector(3 downto 0); 
-        dispatch_instr_subtype_i : in std_logic_vector(4 downto 0);
-        dispatch_rob_idx_i       : in std_logic_vector(ROB_ADDR_BITS-1 downto 0);
+        dispatch_instr_subtype_i : in  std_logic_vector(4 downto 0);
+        dispatch_rob_idx_i       : in  std_logic_vector(ROB_ADDR_BITS-1 downto 0);
+        dispatch_instruction     : in  std_logic_vector(DATA_WIDTH-1 downto 0);
 
         cdb_valid_i              : in  std_logic;
         cdb_addr_i               : in  std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
@@ -49,6 +50,7 @@ entity issue_module is
         issue_imm_o              : out std_logic_vector(DATA_WIDTH-1 downto 0);
         
         issue_pc_reg_o           : out std_logic_vector(DATA_WIDTH-1 downto 0);
+        issue_instruction        : out std_logic_vector(DATA_WIDTH-1 downto 0);
 
         iq_full_o                : out std_logic
     );
@@ -64,6 +66,7 @@ architecture Behavioral of issue_module is
         instr_type      : std_logic_vector(3 downto 0);
         instr_subtype   : std_logic_vector(4 downto 0);
         rob_idx         : std_logic_vector(ROB_ADDR_BITS-1 downto 0);
+        instruction     : std_logic_vector(DATA_WIDTH-1 downto 0);
     end record;
     
     type iq_ram_t is array(0 to IQ_DEPTH-1) of iq_entry_t;
@@ -115,6 +118,8 @@ begin
                 issue_instr_subtype_o <= (others => '0');
                 issue_imm_o           <= (others => '0');
                 issue_pc_reg_o        <= (others => '0');
+                issue_rob_idx_o       <= (others => '0');
+                issue_instruction     <= (others => '0');
                 
             else
                 issue_rd_addr_o       <= (others => '0');
@@ -122,6 +127,8 @@ begin
                 issue_instr_subtype_o <= (others => '0');
                 issue_imm_o           <= (others => '0');
                 issue_pc_reg_o        <= (others => '0');
+                issue_rob_idx_o       <= (others => '0');
+                issue_instruction     <= (others => '0');
                 
                 -- Dispatch
                 -- Write into the Instruction Queue RAM
@@ -136,6 +143,7 @@ begin
                         iq_ram_s(to_integer(unsigned(dispatch_addr_s))).imm             <= dispatch_imm_i;
                         iq_ram_s(to_integer(unsigned(dispatch_addr_s))).pc_value        <= dispatch_pc_reg_i;
                         iq_ram_s(to_integer(unsigned(dispatch_addr_s))).rob_idx         <= dispatch_rob_idx_i;
+                        iq_ram_s(to_integer(unsigned(dispatch_addr_s))).instruction     <= dispatch_instruction;
                     end if;
                 end if;
                 
@@ -149,6 +157,7 @@ begin
                         issue_imm_o             <= iq_ram_s(to_integer(unsigned(issue_full_addr_s))).imm;
                         issue_pc_reg_o          <= iq_ram_s(to_integer(unsigned(issue_full_addr_s))).pc_value;
                         issue_rob_idx_o         <= iq_ram_s(to_integer(unsigned(issue_full_addr_s))).rob_idx;
+                        issue_instruction       <= iq_ram_s(to_integer(unsigned(issue_full_addr_s))).instruction;
                         
                     elsif (issue_partial_valid_s = '1') then      
                         issue_rd_addr_o         <= iq_ram_s(to_integer(unsigned(issue_partial_addr_s))).rd_addr;
@@ -157,6 +166,7 @@ begin
                         issue_imm_o             <= iq_ram_s(to_integer(unsigned(issue_partial_addr_s))).imm;
                         issue_pc_reg_o          <= iq_ram_s(to_integer(unsigned(issue_partial_addr_s))).pc_value;
                         issue_rob_idx_o         <= iq_ram_s(to_integer(unsigned(issue_partial_addr_s))).rob_idx;
+                        issue_instruction       <= iq_ram_s(to_integer(unsigned(issue_partial_addr_s))).instruction;
                     end if;
                 end if;
                 
@@ -174,6 +184,11 @@ begin
                 
                 for i in 0 to IQ_DEPTH-1 loop
                     iq_ffs_s(i).valid <= '0';
+                    iq_ffs_s(i).rs1_ready <= '0';
+                    iq_ffs_s(i).rs2_ready <= '0';
+                    iq_ffs_s(i).is_jalr   <= '0';
+                    iq_ffs_s(i).rs1_addr  <= (others => '0');
+                    iq_ffs_s(i).rs2_addr  <= (others => '0');
                 end loop;
             else
                 issue_valid_o <= '0';
@@ -182,7 +197,7 @@ begin
                 -- Write into the Instruction Queue FFs
                 if (dispatch_ready_s = '1') then
                     if (dispatch_valid_i = '1') then
-                        iq_ffs_s(to_integer(unsigned(dispatch_addr_s))).valid           <= '1';
+                        iq_ffs_s(to_integer(unsigned(dispatch_addr_s))).valid    <= '1';
                         iq_ffs_s(to_integer(unsigned(dispatch_addr_s))).rs1_addr <= dispatch_rs1_addr_i;
                         iq_ffs_s(to_integer(unsigned(dispatch_addr_s))).rs2_addr <= dispatch_rs2_addr_i;
                     
@@ -194,7 +209,7 @@ begin
                         end if;
                         
                         -- Set operand ready fields if tag is published, else read from RN/IS reg
-                        if(dispatch_rs1_addr_i = cdb_addr_i and cdb_valid_i = '1') then
+                        if(dispatch_rs2_addr_i = cdb_addr_i and cdb_valid_i = '1') then
                             iq_ffs_s(to_integer(unsigned(dispatch_addr_s))).rs2_ready   <= '1';
                         else
                             iq_ffs_s(to_integer(unsigned(dispatch_addr_s))).rs2_ready   <= dispatch_rs2_ready_i;
@@ -211,12 +226,12 @@ begin
                         
                 -- Issue
                 -- Reset the valid bits for the instruction that is issued
-                if (issue_full_valid_reg_s = '1') then
+                if (issue_full_valid_s = '1') then
                     issue_valid_o <= '1';
-                    iq_ffs_s(to_integer(unsigned(issue_full_addr_reg_s))).valid    <= '0';
-                elsif (issue_partial_valid_reg_s = '1') then    
+                    iq_ffs_s(to_integer(unsigned(issue_full_addr_s))).valid    <= '0';
+                elsif (issue_partial_valid_s = '1') then    
                     issue_valid_o <= '1';
-                    iq_ffs_s(to_integer(unsigned(issue_partial_addr_reg_s))).valid <= '0';
+                    iq_ffs_s(to_integer(unsigned(issue_partial_addr_s))).valid <= '0';
                 end if;  
                 
                 -- Update all the operand ready fields
@@ -265,15 +280,26 @@ begin
             
         -- Issue/Read from the Instruction Queue
         if (issue_full_valid_reg_s = '1') then
-            issue_rs1_addr_o        <= iq_ffs_s(to_integer(unsigned(issue_full_addr_s))).rs1_addr;
-            issue_rs2_addr_o        <= iq_ffs_s(to_integer(unsigned(issue_full_addr_s))).rs2_addr;
+            issue_rs1_addr_o        <= iq_ffs_s(to_integer(unsigned(issue_full_addr_reg_s))).rs1_addr;
+            issue_rs2_addr_o        <= iq_ffs_s(to_integer(unsigned(issue_full_addr_reg_s))).rs2_addr;
             
-            issue_rs1_ready_o       <= iq_ffs_s(to_integer(unsigned(issue_full_addr_reg_s))).rs1_ready;
-            issue_rs2_ready_o       <= iq_ffs_s(to_integer(unsigned(issue_full_addr_reg_s))).rs2_ready;
+            -- Set operand ready fields if tag is published, else read from IQ
+            if(cdb_valid_i = '1' and iq_ffs_s(to_integer(unsigned(issue_full_addr_reg_s))).rs1_addr = cdb_addr_i) then
+                issue_rs1_ready_o   <= '1';
+            else
+                issue_rs1_ready_o   <= iq_ffs_s(to_integer(unsigned(issue_full_addr_reg_s))).rs1_ready;
+            end if;
+            
+            -- Set operand ready fields if tag is published, else read from IQ
+            if(cdb_valid_i = '1' and iq_ffs_s(to_integer(unsigned(issue_full_addr_reg_s))).rs2_addr = cdb_addr_i) then
+                issue_rs2_ready_o   <= '1';
+            else
+                issue_rs2_ready_o   <= iq_ffs_s(to_integer(unsigned(issue_full_addr_reg_s))).rs2_ready;
+            end if;
             
         elsif (issue_partial_valid_reg_s = '1') then       
-            issue_rs1_addr_o        <= iq_ffs_s(to_integer(unsigned(issue_partial_addr_s))).rs1_addr;
-            issue_rs2_addr_o        <= iq_ffs_s(to_integer(unsigned(issue_partial_addr_s))).rs2_addr;
+            issue_rs1_addr_o        <= iq_ffs_s(to_integer(unsigned(issue_partial_addr_reg_s))).rs1_addr;
+            issue_rs2_addr_o        <= iq_ffs_s(to_integer(unsigned(issue_partial_addr_reg_s))).rs2_addr;
             
             -- Set operand ready fields if tag is published, else read from IQ
             if(cdb_valid_i = '1' and iq_ffs_s(to_integer(unsigned(issue_partial_addr_reg_s))).rs1_addr = cdb_addr_i) then

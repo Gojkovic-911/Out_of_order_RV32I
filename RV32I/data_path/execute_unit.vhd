@@ -50,7 +50,8 @@ entity execute_module is
         data_mem_addr_o         : out std_logic_vector(DATA_WIDTH-1 downto 0);  -- Address for data access
         data_mem_wdata_o        : out std_logic_vector(DATA_WIDTH-1 downto 0);  -- Data to be written to memory
         data_mem_rdata_i        : in  std_logic_vector(DATA_WIDTH-1 downto 0);  -- Data read from memory
-        data_mem_be_o           : out std_logic_vector(MEM_BYTES-1 downto 0)   -- Byte enable (store strobe)    
+        data_mem_be_o           : out std_logic_vector(MEM_BYTES-1 downto 0);   -- Byte enable (store strobe)    
+        instruction             : in  std_logic_vector(DATA_WIDTH-1 downto 0)
       
     );
 end entity;
@@ -69,6 +70,7 @@ architecture Behavioral of execute_module is
         instr_subtype   : std_logic_vector(4 downto 0);
         rd_addr         : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
         rob_idx         : std_logic_vector(ROB_ADDR_BITS-1 downto 0);
+        instruction                  : std_logic_vector(DATA_WIDTH-1 downto 0);
     end record;
     
     type rs_alu_ffs_array_t is array (0 to RS_DEPTH-1) of rs_alu_ffs_entry_t;
@@ -87,6 +89,7 @@ architecture Behavioral of execute_module is
         instr_subtype   : std_logic_vector(4 downto 0);
         rd_addr         : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
         rob_idx         : std_logic_vector(ROB_ADDR_BITS-1 downto 0);
+        instruction                  : std_logic_vector(DATA_WIDTH-1 downto 0);
     end record;
     
     type rs_lsu_ffs_array_t is array (0 to RS_DEPTH-1) of rs_lsu_ffs_entry_t;
@@ -102,6 +105,7 @@ architecture Behavioral of execute_module is
         rs1_addr        : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
         rs2_addr        : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
         rob_idx         : std_logic_vector(ROB_ADDR_BITS-1 downto 0);
+        instruction                  : std_logic_vector(DATA_WIDTH-1 downto 0);
     end record;
     
     type rs_branch_ffs_array_t is array (0 to RS_DEPTH-1) of rs_branch_ffs_entry_t;
@@ -206,7 +210,7 @@ architecture Behavioral of execute_module is
 begin
     
     operands_mux:
-    process (execute_instr_type_i, execute_rs1_data_i, execute_rs2_data_i, execute_imm_i)
+    process (execute_instr_type_i, execute_rs1_data_i, execute_rs2_data_i, execute_imm_i, execute_pc_reg_i)
     begin
         case execute_instr_type_i is
             when R_TYPE =>      
@@ -243,25 +247,9 @@ begin
     begin
         if (rising_edge(clk)) then
             if (reset = '0') then
-                for i in 0 to RS_DEPTH-1 loop
-                    rs_alu_ffs_arr_s(i).valid         <= '0';
-                    rs_alu_ffs_arr_s(i).rs1_ready     <= '0';
-                    rs_alu_ffs_arr_s(i).rs2_ready     <= '0';
-                    rs_alu_ffs_arr_s(i).rs1_data      <= (others => '0');
-                    rs_alu_ffs_arr_s(i).rs2_data      <= (others => '0');
-        
-                    rs_lsu_ffs_arr_s(i).valid         <= '0';
-                    rs_lsu_ffs_arr_s(i).rs1_ready     <= '0';
-                    rs_lsu_ffs_arr_s(i).rs2_ready     <= '0';
-                    rs_lsu_ffs_arr_s(i).rs1_data      <= (others => '0');
-                    rs_lsu_ffs_arr_s(i).rs2_data      <= (others => '0');
-        
-                    rs_branch_ffs_arr_s(i).valid       <= '0';
-                    rs_branch_ffs_arr_s(i).rs1_ready   <= '0';
-                    rs_branch_ffs_arr_s(i).rs2_ready   <= '0';
-                    rs_branch_ffs_arr_s(i).rs1_data    <= (others => '0');
-                    rs_branch_ffs_arr_s(i).rs2_data    <= (others => '0');
-                end loop;
+                rs_alu_ffs_arr_s     <=  (others => (valid => '0', rs1_ready => '0', rs2_ready => '0', others => (others => '0')));
+                rs_lsu_ffs_arr_s     <=  (others => (valid => '0', rs1_ready => '0', rs2_ready => '0', is_load => '0', others => (others => '0')));
+                rs_branch_ffs_arr_s  <=  (others => (valid => '0', rs1_ready => '0', rs2_ready => '0', others => (others => '0')));
 
                 branch_rs_full_s    <= '0';
                 alu_rs_full_s       <= '0';
@@ -269,7 +257,7 @@ begin
                 
             else
                 -- Default values before the instruction is decoded
-                is_load_s           <= '0'; -- should be in flipflops
+                is_load_s        <= '0'; -- should be in flipflops
                 alu_rs_full_s    <= '0';
                 lsu_rs_full_s    <= '0';
                 branch_rs_full_s <= '0';
@@ -288,9 +276,10 @@ begin
                                 rs_alu_ffs_arr_s(to_integer(unsigned(alu_rs_entry_addr_s))).rd_addr         <= execute_rd_addr_i;
                                 rs_alu_ffs_arr_s(to_integer(unsigned(alu_rs_entry_addr_s))).instr_subtype   <= execute_instr_subtype_i;
                                 rs_alu_ffs_arr_s(to_integer(unsigned(alu_rs_entry_addr_s))).rob_idx         <= execute_rob_idx_i;
-                                  
+                                rs_alu_ffs_arr_s(to_integer(unsigned(alu_rs_entry_addr_s))).instruction     <= instruction;
+                                
                                 -- Take the cdb data if published else read from IS/EX reg
-                                if(execute_rs1_addr_i = cdb_addr_s and cdb_valid_s = '1' and rs_alu_ffs_arr_s(to_integer(unsigned(alu_rs_entry_addr_s))).rs1_ready = '0') then
+                                if(execute_rs1_addr_i = cdb_addr_s and cdb_valid_s = '1' and execute_rs1_ready_i = '0') then
                                     rs_alu_ffs_arr_s(to_integer(unsigned(alu_rs_entry_addr_s))).rs1_ready   <= '1';
                                     rs_alu_ffs_arr_s(to_integer(unsigned(alu_rs_entry_addr_s))).rs1_data    <= cdb_data_s;
                                 else
@@ -299,7 +288,7 @@ begin
                                 end if;
                                 
                                 -- Take the cdb data if published else read from IS/EX reg
-                                if(execute_rs2_addr_i = cdb_addr_s and cdb_valid_s = '1' and rs_alu_ffs_arr_s(to_integer(unsigned(alu_rs_entry_addr_s))).rs2_ready = '0') then
+                                if(execute_rs2_addr_i = cdb_addr_s and cdb_valid_s = '1' and execute_rs2_ready_i = '0') then
                                     rs_alu_ffs_arr_s(to_integer(unsigned(alu_rs_entry_addr_s))).rs2_ready    <= '1';
                                     rs_alu_ffs_arr_s(to_integer(unsigned(alu_rs_entry_addr_s))).rs2_data     <= cdb_data_s;
                                 else
@@ -326,13 +315,13 @@ begin
                                 rs_lsu_ffs_arr_s(to_integer(unsigned(lsu_rs_entry_addr_s))).instr_subtype <= execute_instr_subtype_i;
                                 rs_lsu_ffs_arr_s(to_integer(unsigned(lsu_rs_entry_addr_s))).rd_addr       <= execute_rd_addr_i;
                                 rs_lsu_ffs_arr_s(to_integer(unsigned(lsu_rs_entry_addr_s))).rob_idx       <= execute_rob_idx_i;
+                                rs_lsu_ffs_arr_s(to_integer(unsigned(lsu_rs_entry_addr_s))).instruction   <= instruction;
                                 
                                 if(execute_instr_type_i = LOAD) then
                                     rs_lsu_ffs_arr_s(to_integer(unsigned(lsu_rs_entry_addr_s))).is_load       <= '1';
                                 else
                                     rs_lsu_ffs_arr_s(to_integer(unsigned(lsu_rs_entry_addr_s))).is_load       <= '0';
                                 end if;
-                                
                             end if;
                         end if;
                     
@@ -350,7 +339,8 @@ begin
                                 rs_branch_ffs_arr_s(to_integer(unsigned(branch_rs_entry_addr_s))).rs1_addr      <= execute_rs1_addr_i;
                                 rs_branch_ffs_arr_s(to_integer(unsigned(branch_rs_entry_addr_s))).rs2_addr      <= execute_rs2_addr_i;
                                 rs_branch_ffs_arr_s(to_integer(unsigned(branch_rs_entry_addr_s))).instr_subtype <= execute_instr_subtype_i;
-                                rs_branch_ffs_arr_s(to_integer(unsigned(branch_rs_entry_addr_s))).rob_idx             <= execute_rob_idx_i;
+                                rs_branch_ffs_arr_s(to_integer(unsigned(branch_rs_entry_addr_s))).rob_idx       <= execute_rob_idx_i;
+                                rs_branch_ffs_arr_s(to_integer(unsigned(branch_rs_entry_addr_s))).instruction   <= instruction;
                             end if;
                         end if;
                     
@@ -434,14 +424,17 @@ begin
         end if;
     end process;
 
-    -- FFs READ
-    ffs_read:process(alu_cdb_req_s, grant_alu_s, rs_alu_execute_valid_s, rs_alu_ffs_arr_s, rs_alu_execute_addr_s, 
-                        rs_lsu_execute_valid_s, rs_lsu_ffs_arr_s, rs_lsu_execute_addr_s, rs_branch_execute_valid_s, 
-                            rs_branch_ffs_arr_s, rs_branch_execute_addr_s) is
+    -- Issue from the reservation stations FFs
+    -- Key assumption: grant_x_s means x buffer is ready (x data forwarded to cdb)
+    -- ALU FFs READ
+    alu_ffs_read:process(alu_cdb_req_s, grant_alu_s, rs_alu_execute_valid_s, rs_alu_ffs_arr_s, rs_alu_execute_addr_s) is
     begin
-        -- Issue from the reservation stations FFs
-        -- Key assumption: grant_x_s means x buffer is ready (x data forwarded to cdb)
-        
+        alu_a_s                 <= (others =>'0');  
+        alu_b_s                 <= (others =>'0');  
+        alu_op_s                <= (others =>'0');  
+        alu_pre_cdb_rd_addr_s   <= (others =>'0');   
+        alu_rob_idx_s           <= (others =>'0');   
+                
         -- ALU
         if(alu_cdb_req_s = '0' or (alu_cdb_req_s = '1' and grant_alu_s = '1')) then
             if(rs_alu_execute_valid_s = '1') then
@@ -451,24 +444,43 @@ begin
                 alu_pre_cdb_rd_addr_s   <= rs_alu_ffs_arr_s(to_integer(unsigned(rs_alu_execute_addr_s))).rd_addr;
                 alu_rob_idx_s           <= rs_alu_ffs_arr_s(to_integer(unsigned(rs_alu_execute_addr_s))).rob_idx;
             end if;
-        end if;      
+        end if;    
+    end process;
+            
+    -- LSU FFs READ
+    lsu_ffs_read:process(rs_lsu_execute_valid_s, rs_lsu_ffs_arr_s, rs_lsu_execute_addr_s, lsu_cdb_req_s, grant_lsu_s) is
+    begin    
+        is_load_s               <= '0';
+        lsu_subtype_s           <= (others =>'0'); 
+        lsu_addr_i_s            <= (others =>'0');
+        lsu_wdata_i_s           <= (others =>'0');  
+        lsu_rob_idx_s           <= (others =>'0'); 
+        lsu_pre_cdb_rd_addr_s   <= (others =>'0'); 
                        
         -- LSU 
         if(lsu_cdb_req_s = '0' or (lsu_cdb_req_s = '1' and grant_lsu_s = '1')) then
             if(rs_lsu_execute_valid_s = '1') then  
-                is_load_s       <= '0';
                 lsu_subtype_s   <= rs_lsu_ffs_arr_s(to_integer(unsigned(rs_lsu_execute_addr_s))).instr_subtype;
                 lsu_addr_i_s   <= std_logic_vector(unsigned(rs_lsu_ffs_arr_s(to_integer(unsigned(rs_lsu_execute_addr_s))).rs1_data) + unsigned(rs_lsu_ffs_arr_s(to_integer(unsigned(rs_lsu_execute_addr_s))).imm));
                 lsu_wdata_i_s  <= rs_lsu_ffs_arr_s(to_integer(unsigned(rs_lsu_execute_addr_s))).rs2_data; 
                 lsu_rob_idx_s  <= rs_lsu_ffs_arr_s(to_integer(unsigned(rs_lsu_execute_addr_s))).rob_idx;
                 
-                if (rs_lsu_ffs_arr_s(to_integer(unsigned(rs_alu_execute_addr_s))).is_load = '1') then   -- correct ?
+                if (rs_lsu_ffs_arr_s(to_integer(unsigned(rs_lsu_execute_addr_s))).is_load = '1') then   -- correct ?
                     lsu_pre_cdb_rd_addr_s <= rs_lsu_ffs_arr_s(to_integer(unsigned(rs_lsu_execute_addr_s))).rd_addr; 
                     is_load_s             <= '1';
                 end if;
             end if;    
-        end if;     
+        end if; 
+    end process;    
         
+    -- Branch FFs READ
+    branch_ffs_read:process( rs_branch_execute_valid_s, rs_branch_ffs_arr_s, rs_branch_execute_addr_s, branch_taken_s ) is
+    begin
+        branch_taken_o          <= '0';
+        branch_a_s              <= (others =>'0'); 
+        branch_b_s              <= (others =>'0'); 
+        branch_subtype_s        <= (others =>'0'); 
+                 
         -- Branch
         -- if(ready)
         if(rs_branch_execute_valid_s = '1') then
@@ -492,40 +504,7 @@ begin
             zero_o  => alu_zero_s,
             of_o    => alu_overflow_s
         );
-        
-    -- -- ALU FIFO buffer
-    -- alu_fifo_buff : entity work.free_list_fifo
-    -- generic map (
-    --     DEPTH       => RS_DEPTH/2,
-    --     DATA_WIDTH  => PHYS_ADDR_BITS
-    -- )
-    -- port map (
-    --     clk       => clk,
-    --     reset     => reset,
-    --     push      => push_s,
-    --     push_data => rob_commit_prev_phys_i,
-    --     pop       => pop_s,
-    --     pop_data  => pop_data_s,
-    --     empty     => empty_flag_s,
-    --     full      => full_flag_s
-    -- );
-    -- 
-    -- -- ALU buffer
-    -- -- RS must stall correctly
-    -- alu_buffer: process (clk) is
-    -- begin
-    --     if(rising_edge(clk)) then
-    --         if(reset = '0') then
-    --             alu_cdb_data_s      <= (others => '0');
-    --             alu_cdb_rd_addr_s   <= (others => '0');
-    --             alu_cdb_req_s       <= '0';
-    --         else
-    --             alu_cdb_data_s      <= alu_result_s;
-    --             alu_cdb_rd_addr_s   <= alu_pre_cdb_rd_addr_s;
-    --             alu_cdb_req_s       <= rs_alu_execute_valid_s;
-    --         end if;
-    --     end if;
-    -- end process;
+    -- ALU FIFO buffer ??
     
     alu_cdb_data_s      <= alu_result_s;
     alu_cdb_rd_addr_s   <= alu_pre_cdb_rd_addr_s;
@@ -563,6 +542,7 @@ begin
                 cdb_addr_s      <= (others => '0');
                 cdb_valid_s     <= '0';
                 last_grant_s    <= '0';
+                wb_rob_idx_o    <= (others => '0');
             else
                 if grant_alu_s = '1' then
                     cdb_data_s      <= alu_cdb_data_s;
@@ -580,6 +560,7 @@ begin
                     cdb_data_s      <= (others => '0');
                     cdb_addr_s      <= (others => '0');
                     cdb_valid_s     <= '0';
+                    wb_rob_idx_o    <= (others => '0');
                 end if;
             end if;
         end if;
@@ -608,28 +589,6 @@ begin
     --         data_mem_be_o     => data_mem_be_o   
     --     );
     --     
-    -- -- LSU buffer
-    -- process (clk) is
-    -- begin
-    --     if(rising_edge(clk)) then
-    --         if(reset = '0') then
-    --             lsu_cdb_data_s      <= (others => '0');
-    --             lsu_cdb_rd_addr_s   <= (others => '0');
-    --             lsu_cdb_req_s     <= '0';
-    --         else
-    --             if(is_load_s = '1') then -- if load pass the data to cdb
-    --                 lsu_cdb_data_s      <= lsu_rdata_o_s;
-    --                 lsu_cdb_rd_addr_s   <= lsu_pre_cdb_rd_addr_s;
-    --                 lsu_cdb_req_s     <= rs_lsu_execute_valid_s;
-    --             else    -- if store nothing to publish
-    --                 lsu_cdb_data_s      <= (others => '0');
-    --                 lsu_cdb_rd_addr_s   <= (others => '0');
-    --                 lsu_cdb_req_s     <= '0';
-    --             end if;
-    --         end if;
-    --     end if;
-    -- end process;
-    -- 
     -- -- BRANCH
     -- u_branch: entity work.branch_decision_unit
     --     generic map (
@@ -641,8 +600,8 @@ begin
     --         b_i                => branch_b_s,
     --         funct3_i           => branch_subtype_s
     --     );
-    
-    rs_full_o <= branch_rs_full_s or alu_rs_full_s or lsu_rs_full_s;
+    -- 
+    -- rs_full_o <= branch_rs_full_s or alu_rs_full_s or lsu_rs_full_s;
 
     -- Generic priority encoders for finding 
     -- 1) free slot for entry 
@@ -652,6 +611,14 @@ begin
         variable idx   : integer   := -1;
         variable found : std_logic := '0';
     begin
+        alu_rs_entry_ready_s    <= '0';            
+        alu_rs_entry_addr_s     <= (others => '0');
+        
+        lsu_rs_entry_ready_s    <= '0';            
+        lsu_rs_entry_addr_s     <= (others => '0');
+        
+        branch_rs_entry_ready_s <= '0';
+        branch_rs_entry_addr_s  <= (others => '0');
     
     -- 1) free slot for entry 
         case execute_instr_type_i is
@@ -710,14 +677,6 @@ begin
                 end if;
                 
             when others =>
-                alu_rs_entry_ready_s    <= '0';            
-                alu_rs_entry_addr_s     <= (others => '0');
-                
-                lsu_rs_entry_ready_s    <= '0';            
-                lsu_rs_entry_addr_s     <= (others => '0');
-                
-                branch_rs_entry_ready_s <= '0';
-                branch_rs_entry_addr_s  <= (others => '0');
         end case;
         
         -- 2) Find the ready instruction to execute (Read the RS ffs)

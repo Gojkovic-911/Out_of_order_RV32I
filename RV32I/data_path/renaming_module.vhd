@@ -6,7 +6,7 @@ entity renaming_module is
     generic(DATA_WIDTH      : positive  := 32;
             ARCH_ADDR_BITS  : natural   := 5;
             NUM_PHYS_REGS   : natural   := 64;
-            PHYS_ADDR_BITS  : natural   := 5;
+            PHYS_ADDR_BITS  : natural   := 6;
             ROB_DEPTH       : natural   := 64;
             ROB_ADDR_BITS   : natural   := 6 -- log2(64)
             );
@@ -53,7 +53,9 @@ entity renaming_module is
             rob_commit_prev_phys_i    : in std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
 
             -- Status signals
-            free_list_fifo_empty_o    : out std_logic);
+            free_list_fifo_empty_o    : out std_logic;
+            output_valid_o            : out std_logic
+            );
             
 end renaming_module;
 
@@ -136,7 +138,6 @@ begin
        else
           rs2_phys_addr_s <= rename_table_s(to_integer(unsigned(rs2_arch_addr_i)));
        end if;
-       
     end process;
     
     
@@ -146,7 +147,7 @@ begin
     begin
       if (rising_edge(clk)) then
          if (reset = '0')then
-            phys_ready_reg <= (others => '0');
+            phys_ready_reg <= std_logic_vector(to_unsigned(1, NUM_PHYS_REGS));
          else
             phys_ready_reg <= phys_ready_next;
          end if;
@@ -175,12 +176,12 @@ begin
     -- If the operands are not used or phys_addr=0, they are considered ready to instigate execution
     -- cdb could publish just now on phys_ready_next and be missed so check is needed
     ready_gen:
-    process(phys_ready_reg, rs1_phys_addr_s, rs2_phys_addr_s, rename_rs1_used_i, rename_rs2_used_i) is 
+    process(phys_ready_reg, rs1_phys_addr_s, rs2_phys_addr_s, rename_rs1_used_i, rename_rs2_used_i, cdb_rd_addr_i, cdb_valid_i) is 
     begin
         rs1_ready_o <= '0';
         rs2_ready_o <= '0';
         
-            if(rename_rs1_used_i = '1' and rs1_phys_addr_s /= std_logic_vector(to_unsigned(0, PHYS_ADDR_BITS))) then
+            if(rename_rs1_used_i = '1') then
                 if(cdb_valid_i = '1' and (rs1_phys_addr_s = cdb_rd_addr_i)) then
                     rs1_ready_o <= '1';
                 else
@@ -190,7 +191,7 @@ begin
                 rs1_ready_o <= '1';
             end if;
             
-            if(rename_rs2_used_i = '1' and rs2_phys_addr_s /= std_logic_vector(to_unsigned(0, PHYS_ADDR_BITS))) then
+            if(rename_rs2_used_i = '1') then
                 if (cdb_valid_i = '1' and (rs2_phys_addr_s = cdb_rd_addr_i)) then
                     rs2_ready_o <= '1';
                 else

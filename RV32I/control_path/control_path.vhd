@@ -15,6 +15,8 @@ entity control_path is
         -- ***************** Control inteface ****************************
         instr_format_o          : out std_logic_vector(2 downto 0); -- Immediate 
         
+        decode_instr_type_o     : out std_logic_vector(3 downto 0);
+        
         rename_rd_we_o          : out std_logic;    -- Rd used
         rename_rs1_used_o       : out std_logic;    -- rs1 used
         rename_rs2_used_o       : out std_logic;    -- rs2 used
@@ -39,8 +41,6 @@ entity control_path is
         rs_full_i               : in std_logic;
         
         branch_taken_i          : in std_logic -- needed ?
-        
-        
         ); 
 end entity;
     
@@ -144,7 +144,7 @@ begin
         if rising_edge(clk) then
             if reset = '0' then
                 dipatch_instr_type_s    <= (others => '0');
-                rename_alu_2bit_op_s    <= (others => '0');
+                dipatch_alu_2bit_op_s    <= (others => '0');
                 dipatch_funct3_s        <= (others => '0');
                 dipatch_funct7_s        <= (others => '0');
             elsif stall_is_s = '0' then
