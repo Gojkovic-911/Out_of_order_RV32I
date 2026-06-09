@@ -24,6 +24,9 @@ entity renaming_module is
             rename_rs1_used_i   : in  std_logic;
             rename_rs2_used_i   : in  std_logic;
             rd_we_i             : in  std_logic;
+            rename_snapshot_i   : in  std_logic;
+            flush_i             : in  std_logic;
+            rename_instr_valid_i: in  std_logic;
             
             -- Operand outputs
             rs1_ready_o         : out std_logic;
@@ -38,12 +41,10 @@ entity renaming_module is
             
             -- ROB interface
             -- Renaming stage
-            rob_rename_write_en_o     : out std_logic;
             rob_rename_rd_instr_o     : out std_logic;
             rob_rename_rd_arch_o      : out std_logic_vector(ARCH_ADDR_BITS-1 downto 0);
             rob_rename_rd_phys_o      : out std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
             rob_rename_prev_phys_o    : out std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
-            rob_rename_idx_o          : out std_logic_vector(ROB_ADDR_BITS-1 downto 0);
             
             -- Commit stage
             rob_commit_valid_i        : in std_logic;
@@ -70,7 +71,6 @@ architecture Behavioral of renaming_module is
     signal push_s, pop_s                : std_logic;
     signal full_flag_s                  : std_logic;
     signal empty_flag_s                 : std_logic;
-    signal push_data_s                  : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
     signal pop_data_s                   : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
     
     -- ROB signals
@@ -92,7 +92,6 @@ begin
     rd_phys_addr_o  <= rd_phys_addr_s;
     
     free_list_fifo_empty_o  <= empty_flag_s;
-    
 
     -- COMMIT Renaming table
     -- Synchronous write
@@ -103,7 +102,9 @@ begin
             if (reset = '0')then
                 commit_rename_table_s <= (others => (others => '0'));
             elsif (rob_commit_valid_i = '1') then
-                commit_rename_table_s(to_integer(unsigned(rob_commit_rd_arch_i))) <= rob_commit_rd_phys_i;
+                if(to_integer(unsigned(rob_commit_rd_arch_i)) /= 0) then
+                    commit_rename_table_s(to_integer(unsigned(rob_commit_rd_arch_i))) <= rob_commit_rd_phys_i;
+                end if;
             end if;
         end if;
     end process;
@@ -117,7 +118,9 @@ begin
             if (reset = '0')then
                 rename_table_s <= (others => (others => '0'));
             elsif (rename_table_we_s = '1') then
-                rename_table_s(to_integer(unsigned(rd_arch_addr_i))) <= rd_phys_addr_s;
+                if(to_integer(unsigned(rd_arch_addr_i)) /= 0) then
+                    rename_table_s(to_integer(unsigned(rd_arch_addr_i))) <= rd_phys_addr_s;
+                end if;
             end if;
         end if;
     end process;
@@ -162,6 +165,7 @@ begin
     process(rename_table_we_s, cdb_valid_i, rd_phys_addr_s, cdb_rd_addr_i, phys_ready_reg)
     begin
         phys_ready_next <= phys_ready_reg; -- default value ??
+        
         for i in 0 to NUM_PHYS_REGS-1 loop
             if (rename_table_we_s = '1' and (to_integer(unsigned(rd_phys_addr_s)) = i)) then
                 phys_ready_next(i) <= '0';
@@ -205,31 +209,29 @@ begin
     
     -- Should this be in the control path ?
     -- Logic to handle free_list_fifo and rob entry in case it's (or not) an rd instr
-    comb_logic: process (rd_we_i, pop_data_s, rd_arch_addr_i, rename_table_s) is
+    comb_logic: process (rd_we_i, pop_data_s, rd_arch_addr_i, rename_table_s, rename_instr_valid_i) is
     begin
         
         rd_phys_addr_s              <= (others => '0');
         pop_s                       <= '0';
         rename_table_we_s           <= '0';
         
-        rob_rename_write_en_o       <= '0';
         rob_rename_rd_instr_o       <= '0';
         rob_rename_rd_arch_o        <= (others => '0');
         rob_rename_rd_phys_o        <= (others => '0');
         rob_rename_prev_phys_o      <= (others => '0');
         
-        if(rd_we_i = '1') then
+        if(rd_we_i = '1' and rename_instr_valid_i = '1') then
             -- Rd: New physical address from free_list_fifo
-            rd_phys_addr_s              <= pop_data_s;
-            pop_s                       <= '1';
-            rename_table_we_s           <= '1';  -- Write it in the rename table
+            rd_phys_addr_s          <= pop_data_s;
+            pop_s                   <= '1';
+            rename_table_we_s       <= '1';  -- Write it in the rename table
             
             -- Write the entry for the ROB
-            rob_rename_write_en_o       <= '1';
-            rob_rename_rd_instr_o       <= '1'; 
-            rob_rename_rd_arch_o        <= rd_arch_addr_i;
-            rob_rename_rd_phys_o        <= pop_data_s;
-            rob_rename_prev_phys_o      <= rename_table_s(to_integer(unsigned(rd_arch_addr_i))); -- Asynchronous read
+            rob_rename_rd_instr_o   <= '1'; 
+            rob_rename_rd_arch_o    <= rd_arch_addr_i;
+            rob_rename_rd_phys_o    <= pop_data_s;
+            rob_rename_prev_phys_o  <= rename_table_s(to_integer(unsigned(rd_arch_addr_i))); -- Asynchronous read
         end if;
     end process;     
     
@@ -247,14 +249,16 @@ begin
         DATA_WIDTH  => PHYS_ADDR_BITS
     )
     port map (
-        clk       => clk,
-        reset     => reset,
-        push      => push_s,
-        push_data => rob_commit_prev_phys_i,
-        pop       => pop_s,
-        pop_data  => pop_data_s,
-        empty     => empty_flag_s,
-        full      => full_flag_s
+        clk         => clk,
+        reset       => reset,
+        push        => push_s,
+        push_data   => rob_commit_prev_phys_i,
+        pop         => pop_s,
+        snapshot_i  => rename_snapshot_i,
+        flush_i     => flush_i,
+        pop_data    => pop_data_s,
+        empty       => empty_flag_s,
+        full        => full_flag_s
     );
     
 end Behavioral;

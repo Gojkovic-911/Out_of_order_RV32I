@@ -14,12 +14,12 @@ entity issue_module is
     port (
         clk          : in  std_logic;
         reset        : in  std_logic;
-
+        
         dispatch_valid_i         : in  std_logic;
         dispatch_rs1_addr_i      : in  std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
         dispatch_rs2_addr_i      : in  std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
         dispatch_rd_addr_i       : in  std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
-
+        
         dispatch_rs1_ready_i     : in  std_logic;
         dispatch_rs2_ready_i     : in  std_logic;
         
@@ -30,11 +30,14 @@ entity issue_module is
         dispatch_instr_subtype_i : in  std_logic_vector(4 downto 0);
         dispatch_rob_idx_i       : in  std_logic_vector(ROB_ADDR_BITS-1 downto 0);
         dispatch_instruction     : in  std_logic_vector(DATA_WIDTH-1 downto 0);
-
+        
         cdb_valid_i              : in  std_logic;
         cdb_addr_i               : in  std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
         stall_iq_is_i            : in  std_logic;
-
+        flush_pipe_i             : in std_logic;
+        spec_instr_i             : in std_logic;
+        clear_spec_i            : in  std_logic;
+        
         issue_valid_o            : out std_logic; -- if found
         issue_rs1_addr_o         : out std_logic_vector(PHYS_ADDR_BITS-1 downto 0);    -- rs1 addr
         issue_rs2_addr_o         : out std_logic_vector(PHYS_ADDR_BITS-1 downto 0);    -- rs2 addr
@@ -46,27 +49,28 @@ entity issue_module is
         
         issue_instr_type_o       : out std_logic_vector(3 downto 0);                 -- needed for selecting ex units
         issue_instr_subtype_o    : out std_logic_vector(4 downto 0);                 -- needed for ex units
+        spec_instr_o             : out std_logic;
         
         issue_imm_o              : out std_logic_vector(DATA_WIDTH-1 downto 0);
         
         issue_pc_reg_o           : out std_logic_vector(DATA_WIDTH-1 downto 0);
         issue_instruction        : out std_logic_vector(DATA_WIDTH-1 downto 0);
-
+        
         iq_full_o                : out std_logic
-    );
+    );  
 end entity;
 
 architecture Behavioral of issue_module is
     
     -- IQ entries RAM
     type iq_entry_t is record
+        instruction     : std_logic_vector(DATA_WIDTH-1 downto 0);
         rd_addr         : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
         imm             : std_logic_vector(DATA_WIDTH-1 downto 0);
         pc_value        : std_logic_vector(DATA_WIDTH-1 downto 0);
         instr_type      : std_logic_vector(3 downto 0);
         instr_subtype   : std_logic_vector(4 downto 0);
         rob_idx         : std_logic_vector(ROB_ADDR_BITS-1 downto 0);
-        instruction     : std_logic_vector(DATA_WIDTH-1 downto 0);
     end record;
     
     type iq_ram_t is array(0 to IQ_DEPTH-1) of iq_entry_t;
@@ -74,12 +78,13 @@ architecture Behavioral of issue_module is
     
     -- IQ entries flip-flops
     type iq_ff_entry_t is record
-        rs1_addr        : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
-        rs2_addr        : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
+        valid           : std_logic;
         rs1_ready       : std_logic;
         rs2_ready       : std_logic;
-        valid           : std_logic;
+        rs1_addr        : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
+        rs2_addr        : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
         is_jalr         : std_logic;
+        is_spec         : std_logic;
     end record;
     
     type iq_ffs_t is array (0 to IQ_DEPTH-1) of iq_ff_entry_t;
@@ -183,12 +188,13 @@ begin
                 issue_valid_o <= '0';
                 
                 for i in 0 to IQ_DEPTH-1 loop
-                    iq_ffs_s(i).valid <= '0';
-                    iq_ffs_s(i).rs1_ready <= '0';
-                    iq_ffs_s(i).rs2_ready <= '0';
-                    iq_ffs_s(i).is_jalr   <= '0';
-                    iq_ffs_s(i).rs1_addr  <= (others => '0');
-                    iq_ffs_s(i).rs2_addr  <= (others => '0');
+                    iq_ffs_s(i).valid       <= '0';
+                    iq_ffs_s(i).rs1_ready   <= '0';
+                    iq_ffs_s(i).rs2_ready   <= '0';
+                    iq_ffs_s(i).is_jalr     <= '0';
+                    iq_ffs_s(i).is_spec     <= '0';
+                    iq_ffs_s(i).rs1_addr    <= (others => '0');
+                    iq_ffs_s(i).rs2_addr    <= (others => '0');
                 end loop;
             else
                 issue_valid_o <= '0';
@@ -200,6 +206,7 @@ begin
                         iq_ffs_s(to_integer(unsigned(dispatch_addr_s))).valid    <= '1';
                         iq_ffs_s(to_integer(unsigned(dispatch_addr_s))).rs1_addr <= dispatch_rs1_addr_i;
                         iq_ffs_s(to_integer(unsigned(dispatch_addr_s))).rs2_addr <= dispatch_rs2_addr_i;
+                        iq_ffs_s(to_integer(unsigned(dispatch_addr_s))).is_spec  <= spec_instr_i;
                     
                         -- Set operand ready fields if tag is published, else read from RN/IS reg
                         if(dispatch_rs1_addr_i = cdb_addr_i and cdb_valid_i = '1') then
@@ -247,6 +254,24 @@ begin
                         end if;
                     end loop;
                 end if;
+                
+                -- Branch misspredicted
+                if(flush_pipe_i = '1') then   
+                    for i in 0 to IQ_DEPTH-1 loop
+                        if (iq_ffs_s(i).is_spec = '1' ) then
+                            iq_ffs_s(i).valid <= '0';
+                        end if;
+                    end loop;
+                end if;
+                
+                -- Branch predicted correctly
+                if(clear_spec_i = '1') then
+                    for i in 0 to IQ_DEPTH-1 loop
+                        if (iq_ffs_s(i).valid = '1' ) then
+                            iq_ffs_s(i).is_spec <= '0';
+                        end if;
+                    end loop;
+                end if;
             end if;
         end if;
     end process;
@@ -277,11 +302,13 @@ begin
             issue_rs2_addr_o        <= (others => '0');
             issue_rs1_ready_o       <= '0';
             issue_rs2_ready_o       <= '0';
+            spec_instr_o            <= '0';
             
         -- Issue/Read from the Instruction Queue
         if (issue_full_valid_reg_s = '1') then
             issue_rs1_addr_o        <= iq_ffs_s(to_integer(unsigned(issue_full_addr_reg_s))).rs1_addr;
             issue_rs2_addr_o        <= iq_ffs_s(to_integer(unsigned(issue_full_addr_reg_s))).rs2_addr;
+            spec_instr_o            <= iq_ffs_s(to_integer(unsigned(issue_full_addr_reg_s))).is_spec;
             
             -- Set operand ready fields if tag is published, else read from IQ
             if(cdb_valid_i = '1' and iq_ffs_s(to_integer(unsigned(issue_full_addr_reg_s))).rs1_addr = cdb_addr_i) then
@@ -300,6 +327,7 @@ begin
         elsif (issue_partial_valid_reg_s = '1') then       
             issue_rs1_addr_o        <= iq_ffs_s(to_integer(unsigned(issue_partial_addr_reg_s))).rs1_addr;
             issue_rs2_addr_o        <= iq_ffs_s(to_integer(unsigned(issue_partial_addr_reg_s))).rs2_addr;
+            spec_instr_o            <= iq_ffs_s(to_integer(unsigned(issue_partial_addr_reg_s))).is_spec;
             
             -- Set operand ready fields if tag is published, else read from IQ
             if(cdb_valid_i = '1' and iq_ffs_s(to_integer(unsigned(issue_partial_addr_reg_s))).rs1_addr = cdb_addr_i) then

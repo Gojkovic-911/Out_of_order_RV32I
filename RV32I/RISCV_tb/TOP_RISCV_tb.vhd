@@ -1,8 +1,10 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use ieee.std_logic_textio.all;
 use std.textio.all;
 use work.txt_util.all;
+
 
 entity TOP_RISCV_tb is
 generic (
@@ -131,5 +133,114 @@ begin
       clk <= '1', '0' after 100 ns;
       wait for 200 ns;
    end process;
+   
+    dump_proc: process
+        file dump_file : text open write_mode is "register_dump.txt";
+        variable line_out : line;
+        variable timestamp : time;
+    begin
+        -- Sačekaj kraj simulacije (kada sve instrukcije završe)
+        wait for 25 us;
+        
+        timestamp := now;
+        
+        -- Otvori fajl za pisanje
+        file_open(dump_file, "register_dump.txt", write_mode);
+        
+        -- Header
+        write(line_out, string'("============================================="));
+        writeline(dump_file, line_out);
+        write(line_out, string'("REGISTER DUMP AT TIME: "));
+        write(line_out, timestamp);
+        writeline(dump_file, line_out);
+        write(line_out, string'("============================================="));
+        writeline(dump_file, line_out);
+        writeline(dump_file, line_out);
+        
+        -- ==================================================
+        -- 1. COMMIT RENAME TABLE (mapiranje arhitektonskih -> fizičkih registara)
+        -- ==================================================
+        write(line_out, string'("=== COMMIT RENAME TABLE ==="));
+        writeline(dump_file, line_out);
+        write(line_out, string'("ARCH REG -> PHYS REG"));
+        writeline(dump_file, line_out);
+        write(line_out, string'("------------------------"));
+        writeline(dump_file, line_out);
+        
+        for i in 0 to 31 loop
+            write(line_out, string'("x"));
+            write(line_out, i);
+            write(line_out, string'("     -> reg_"));
+            write(line_out, to_integer(unsigned(
+                TOP_RISCV_1.data_path_1.u_renaming_module.commit_rename_table_s(i)
+            )));
+            writeline(dump_file, line_out);
+        end loop;
+        
+        writeline(dump_file, line_out);
+        writeline(dump_file, line_out);
+        
+        -- ==================================================
+        -- 2. PHYSICAL REGISTERS (stvarne vrijednosti podataka)
+        -- ==================================================
+        write(line_out, string'("=== PHYSICAL REGISTERS ==="));
+        writeline(dump_file, line_out);
+        write(line_out, string'("PHYS REG -> VALUE (hex)"));
+        writeline(dump_file, line_out);
+        write(line_out, string'("------------------------"));
+        writeline(dump_file, line_out);
+        
+        for i in 0 to 63 loop
+            write(line_out, string'("reg_"));
+            write(line_out, i);
+            write(line_out, string'("  -> 0x"));
+            write(line_out, to_hex_string(
+                TOP_RISCV_1.data_path_1.phys_regs_s(i)
+            ));
+            writeline(dump_file, line_out);
+        end loop;
+        
+        writeline(dump_file, line_out);
+        writeline(dump_file, line_out);
+        
+        -- ==================================================
+        -- 3. SAMO REGISTRI KOJI SU KORIŠTENI (NON-ZERO)
+        -- ==================================================
+        write(line_out, string'("=== NON-ZERO PHYSICAL REGISTERS ONLY ==="));
+        writeline(dump_file, line_out);
+        write(line_out, string'("PHYS REG -> VALUE (hex)"));
+        writeline(dump_file, line_out);
+        write(line_out, string'("------------------------"));
+        writeline(dump_file, line_out);
+        
+        for i in 0 to 63 loop
+            if unsigned(TOP_RISCV_1.data_path_1.phys_regs_s(i)) /= 0 then
+                write(line_out, string'("reg_"));
+                write(line_out, i);
+                write(line_out, string'("  -> 0x"));
+                write(line_out, to_hex_string(
+                    TOP_RISCV_1.data_path_1.phys_regs_s(i)
+                ));
+                writeline(dump_file, line_out);
+            end if;
+        end loop;
+        
+        writeline(dump_file, line_out);
+        write(line_out, string'("============================================="));
+        writeline(dump_file, line_out);
+        write(line_out, string'("END OF DUMP"));
+        writeline(dump_file, line_out);
+        write(line_out, string'("============================================="));
+        writeline(dump_file, line_out);
+        
+        -- Zatvori fajl
+        file_close(dump_file);
+        
+        -- Report
+        report "Register dump written to register_dump.txt at time " & time'image(timestamp);
+        
+        wait; -- završi proces
+    end process dump_proc;
+
 
 end architecture;

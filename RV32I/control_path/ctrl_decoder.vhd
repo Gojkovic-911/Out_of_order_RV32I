@@ -10,7 +10,6 @@ entity ctrl_dec is
         rd_we_o         : out std_logic;   -- instruction has rd
         rs1_used_o      : out std_logic;   -- instruction 
         rs2_used_o      : out std_logic;   
-        is_jump_o       : out std_logic;
         
         instr_format_o  : out std_logic_vector(2 downto 0);    -- For the immediate extension module
         instr_type_o    : out std_logic_vector(3 downto 0);
@@ -23,20 +22,8 @@ entity ctrl_dec is
 end entity;
 
 architecture Behavioral of ctrl_dec is
-    
-    -- Instruction opcode constants 
-    constant OPCODE_R_TYPE : std_logic_vector(6 downto 0) := "0110011";
-    constant OPCODE_I_TYPE : std_logic_vector(6 downto 0) := "0010011";
-    constant OPCODE_LOAD   : std_logic_vector(6 downto 0) := "0000011";
-    constant OPCODE_STORE  : std_logic_vector(6 downto 0) := "0100011";
-    constant OPCODE_BRANCH : std_logic_vector(6 downto 0) := "1100011";
-    constant OPCODE_JAL    : std_logic_vector(6 downto 0) := "1101111";
-    constant OPCODE_JALR   : std_logic_vector(6 downto 0) := "1100111";
-    constant OPCODE_LUI    : std_logic_vector(6 downto 0) := "0110111";
-    constant OPCODE_AUIPC  : std_logic_vector(6 downto 0) := "0010111";
 
     signal opcode  : std_logic_vector(6 downto 0);
-    
 begin
     
     opcode      <= instr_i(6 downto 0);
@@ -49,7 +36,6 @@ begin
         rd_we_o      <= '0';
         rs1_used_o   <= '0';
         rs2_used_o   <= '0';
-        is_jump_o    <= '0';
         
         instr_format_o  <= r_format_instruction; -- no immediate
         instr_type_o    <= (others => '0');
@@ -96,14 +82,12 @@ begin
             -- Branch instructions
             rs1_used_o      <= '1';
             rs2_used_o      <= '1';
-            is_jump_o       <= '1';
             instr_format_o  <= b_format_instruction; -- Branch immediate
             instr_type_o    <= BRANCH;
 
         elsif opcode = OPCODE_JAL then
             -- JAL
             rd_we_o         <= '1';
-            is_jump_o       <= '1';
             instr_format_o  <= j_format_instruction; -- JAL immediate
             instr_type_o    <= JAL;
 
@@ -111,7 +95,6 @@ begin
             -- JALR
             rd_we_o         <= '1';
             rs1_used_o      <= '1';
-            is_jump_o       <= '1';
             instr_format_o  <= i_format_instruction; -- JALR immediate
             alu_2bit_op_o   <= "00";
             instr_type_o    <= JALR;

@@ -34,14 +34,15 @@ entity data_path is
         data_mem_be_o           : out std_logic_vector(MEM_BYTES-1 downto 0);   -- Byte enable (load/store strobe)
         
         -- ********* Control signals ************************
-        decode_instr_type_i     : in  std_logic_vector(3 downto 0);
         decode_instr_format_i   : in  std_logic_vector(2 downto 0);
+        fetch_is_jump_i        : in  std_logic;
+        fetch_is_spec_i        : in  std_logic;
         
         rename_rd_we_i           : in  std_logic;
         rename_rs1_used_i        : in  std_logic;
         rename_rs2_used_i        : in  std_logic;
-        rename_is_jump_i         : in  std_logic;
-        
+        rename_snapshot_i        : in  std_logic;
+
         dispatch_instr_type_i    : in std_logic_vector(3 downto 0);
         dispatch_instr_subtype_i : in std_logic_vector(4 downto 0);
      
@@ -52,6 +53,9 @@ entity data_path is
         stall_ex_i              : in std_logic;     -- Stall execute stage
         stall_iq_is_i           : in std_logic;     -- Stall issue from IQ
         
+        -- if_id_flush_i           : in std_logic;
+        pc_next_sel_i           : in std_logic;
+        flush_pipe_i            : in std_logic;
         if_id_flush_i           : in std_logic;
         
         -- *********** Status signals ***********************
@@ -59,8 +63,9 @@ entity data_path is
         free_list_fifo_empty_o  : out std_logic;    -- No free registers in fifo
         iq_full_o               : out std_logic;    -- IQ full
         
-        rs_full_o               : out std_logic;    -- reservation stations full
-        branch_taken_o          : out std_logic     -- Branch taken execute stage
+        misspredict_o           : out std_logic;
+        
+        rs_full_o               : out std_logic    -- reservation stations full
         );
 
 end entity;
@@ -75,16 +80,18 @@ architecture Behavioral of data_path is
     
     -- Fetch signals
     signal fetch_instruction_s          : std_logic_vector(DATA_WIDTH-1 downto 0);
-    signal fetch_branch_adder_s         : std_logic_vector(DATA_WIDTH-1 downto 0);
+    signal fetch_instr_valid_s          : std_logic;
     signal pc_adder_s                   : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal pc_reg_s, pc_next_s          : std_logic_vector(DATA_WIDTH-1 downto 0);
-    signal pc_jump_addr_s               : std_logic_vector(DATA_WIDTH-1 downto 0);
-    signal pc_next_sel_s                : std_logic;
+    signal pc_revert_addr_s             : std_logic_vector(DATA_WIDTH-1 downto 0);
     
     -- Decode signals
     signal decode_instruction_s         : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal decode_imm_s                 : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal decode_pc_reg_s              : std_logic_vector(DATA_WIDTH-1 downto 0);
+    signal decode_instr_valid_s         : std_logic;
+    signal decode_spec_instr_s          : std_logic;
+    signal decode_is_jump_s             : std_logic;
     
     -- Renaming signals
     signal rename_rs1_arch_addr_s       : std_logic_vector(ARCH_ADDR_BITS-1 downto 0);
@@ -99,8 +106,8 @@ architecture Behavioral of data_path is
     signal rename_rs2_ready_s           : std_logic;
     
     signal rename_instr_valid_s         : std_logic;
+    signal rename_spec_instr_s          : std_logic;
     
-    signal rename_instruction_type_s    : std_logic_vector(3 downto 0);
     signal rename_imm_s                 : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal rename_pc_reg_s              : std_logic_vector(DATA_WIDTH-1 downto 0);
     
@@ -108,7 +115,6 @@ architecture Behavioral of data_path is
 
 
     -- ROB signals
-    signal rob_rename_write_en_s        : std_logic;
     signal rob_rename_rd_arch_s         : std_logic_vector(ARCH_ADDR_BITS-1 downto 0);
     signal rob_rename_rd_phys_s         : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
     signal rob_rename_prev_phys_s       : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
@@ -119,7 +125,7 @@ architecture Behavioral of data_path is
     signal rob_full_s                   : std_logic;
     signal rob_empty_s                  : std_logic;
     
-    signal wb_rob_idx_s             : std_logic_vector(ROB_ADDR_BITS-1 downto 0);
+    signal wb_rob_idx_s                 : std_logic_vector(ROB_ADDR_BITS-1 downto 0);
 
     signal rob_commit_valid_s           : std_logic;
     signal rob_commit_rd_arch_s         : std_logic_vector(ARCH_ADDR_BITS-1 downto 0);
@@ -132,7 +138,6 @@ architecture Behavioral of data_path is
     
     
     -- Dispatch/Issue signals
-    signal dispatch_instr_type_s        : std_logic_vector(3 downto 0);
     signal dispatch_valid_s             : std_logic;
 
     signal dispatch_rs1_addr_s          : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
@@ -143,10 +148,12 @@ architecture Behavioral of data_path is
     signal dispatch_imm_s               : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal dispatch_pc_reg_s            : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal dispatch_rob_idx_s           : std_logic_vector(ROB_ADDR_BITS-1 downto 0);
+    signal dispatch_spec_instr_s        : std_logic;
 
     signal issue_rs1_addr_s             : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
     signal issue_rs2_addr_s             : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
     signal issue_rd_addr_s              : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
+    signal issue_spec_instr_s           : std_logic;
 
     signal issue_rs1_data_s             : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal issue_rs2_data_s             : std_logic_vector(DATA_WIDTH-1 downto 0);
@@ -174,6 +181,7 @@ architecture Behavioral of data_path is
     
     signal execute_instr_type_s    : std_logic_vector(3 downto 0);
     signal execute_instr_subtype_s : std_logic_vector(4 downto 0);
+    signal execute_spec_instr_s    : std_logic;
     
     signal execute_rs1_ready_s     : std_logic;
     signal execute_rs2_ready_s     : std_logic;
@@ -182,28 +190,30 @@ architecture Behavioral of data_path is
     
     signal execute_pc_reg_s        : std_logic_vector(DATA_WIDTH-1 downto 0);
     
-    signal branch_imm_s            : std_logic_vector(DATA_WIDTH-1 downto 0);
-    
     signal cdb_valid_s             : std_logic;
     signal cdb_data_s              : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal cdb_rd_addr_s           : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
     
-    -- Writeback signals
-    signal phys_ready_wb_we_s      : std_logic;
-    signal wb_phys_addr_s          : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
-
-    signal wb_phys_we_s            : std_logic;
-    signal wb_phys_waddr_s         : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
-    signal wb_phys_wdata_s         : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
+    signal branch_taken_s          : std_logic;
+    signal branch_taken_valid_s    : std_logic;
+    signal branch_taken_idx_s      : std_logic_vector(ROB_ADDR_BITS-1 downto 0);
     
-    signal rename_inst_valid       : std_logic;
-
     type phys_reg_array_t is array (0 to NUM_PHYS_REGS-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
     signal phys_regs_s : phys_reg_array_t := (others => (others => '0'));
     
+    signal spec_reg_s, spec_lock    : std_logic;
+    signal clear_spec_s             : std_logic;
+    signal pc_halt_s, halt_lock_s   : std_logic;
+    signal pc_reg_s_delayed         : std_logic_vector(DATA_WIDTH-1 downto 0);
+    
 begin
     
-    rob_full_o              <= rob_full_s;
+    -- Instruction memory
+    fetch_instruction_s <= instr_mem_data_i;
+
+    -- Control signals
+    instruction_o       <= fetch_instruction_s;
+    rob_full_o          <= rob_full_s;
     
     -- Physical registers bank
     -- Synchronous write
@@ -213,7 +223,9 @@ begin
             if(reset = '0') then
                 phys_regs_s <= (others => (others => '0'));
             elsif cdb_valid_s = '1' then -- cdb_valid ?
-                phys_regs_s(to_integer(unsigned(cdb_rd_addr_s))) <= cdb_data_s;
+                if(to_integer(unsigned(cdb_rd_addr_s)) /= 0) then
+                    phys_regs_s(to_integer(unsigned(cdb_rd_addr_s))) <= cdb_data_s;
+                end if;
             end if;
         end if;
     end process;
@@ -225,13 +237,21 @@ begin
         if(to_integer(unsigned(issue_rs1_addr_s)) = 0) then
             issue_rs1_data_s <= std_logic_vector(to_unsigned(0, DATA_WIDTH));
         else
-            issue_rs1_data_s <= phys_regs_s(to_integer(unsigned(issue_rs1_addr_s)));
+            if(cdb_valid_s = '1' and cdb_rd_addr_s = issue_rs1_addr_s ) then
+                issue_rs1_data_s <= cdb_data_s;
+            else
+                issue_rs1_data_s <= phys_regs_s(to_integer(unsigned(issue_rs1_addr_s)));
+            end if;
         end if;
         
         if(to_integer(unsigned(issue_rs2_addr_s)) = 0) then
             issue_rs2_data_s <= std_logic_vector(to_unsigned(0, DATA_WIDTH));
         else
-            issue_rs2_data_s <= phys_regs_s(to_integer(unsigned(issue_rs2_addr_s)));
+            if(cdb_valid_s = '1' and cdb_rd_addr_s = issue_rs2_addr_s ) then
+                issue_rs2_data_s <= cdb_data_s;
+            else
+                issue_rs2_data_s <= phys_regs_s(to_integer(unsigned(issue_rs2_addr_s)));
+            end if;
         end if;
     end process;
     
@@ -239,34 +259,61 @@ begin
     -- Program counter
     pc_reg : process (clk) is
     begin
-       if (rising_edge(clk)) then
-          if (reset = '0')then
-             pc_reg_s <= (others => '0');
-          elsif stall_if_i = '0' then
-             pc_reg_s <= pc_next_s;
-          end if;
-       end if;
-    end process;
-    
-    -- Instruction memory
-    fetch_instruction_s <= instr_mem_data_i;
-    instr_mem_addr_o    <= pc_reg_s;
-    
-    -- Next sequential instruction (pc+4)
-    
-    pc_add:process (pc_reg_s, decode_imm_s, decode_instr_type_i) begin
-        if (decode_instr_type_i = JAL or decode_instr_type_i = BRANCH) then
-            pc_adder_s  <= std_logic_vector(unsigned(pc_reg_s)+ unsigned(decode_imm_s));
-        else
-            pc_adder_s  <= std_logic_vector(unsigned(pc_reg_s) + to_unsigned(4, DATA_WIDTH));
+        if rising_edge(clk) then
+            if reset = '0' then
+                pc_reg_s <= (others => '0');
+                fetch_instr_valid_s <= '0';
+            elsif stall_if_i = '1' then -- stall
+                pc_reg_s <= pc_reg_s;
+                fetch_instr_valid_s <= '0';
+            elsif flush_pipe_i = '1' then      
+                pc_reg_s   <= pc_next_s;
+                fetch_instr_valid_s <= '1';
+            elsif decode_is_jump_s = '1'  then -- BRANCH and JAL
+                pc_reg_s <= std_logic_vector(unsigned(decode_pc_reg_s) + unsigned(decode_imm_s) + to_unsigned(4, DATA_WIDTH));
+                fetch_instr_valid_s <= '1';
+            else      
+                pc_reg_s   <= pc_next_s;
+                fetch_instr_valid_s <= '1';
+            end if;
         end if;
     end process;
     
+    -- PC gets either pc+4 or pc+imm
+    pc_add:process (pc_reg_s, decode_imm_s, decode_pc_reg_s, decode_is_jump_s) begin
+        if (decode_is_jump_s = '1') then -- BRANCH and JAL
+            instr_mem_addr_o <= std_logic_vector(unsigned(decode_pc_reg_s) + unsigned(decode_imm_s));
+        else
+            instr_mem_addr_o <= pc_reg_s;
+        end if;
+    end process;
+    
+    pc_adder_s  <= std_logic_vector(unsigned(pc_reg_s) + to_unsigned(4, DATA_WIDTH));
+            
     -- MUX selecting the next addr for PC
-    with pc_next_sel_s select
+    with pc_next_sel_i select
        pc_next_s <= 
        pc_adder_s       when '0',       -- PC+4
-       pc_jump_addr_s   when others;    -- jump addr
+       pc_revert_addr_s when others;    -- jump addr
+    
+    -- Register for marking instructions speculative - JALR & BRANCH
+    spec_reg : process (clk) is
+    begin
+       if (rising_edge(clk)) then
+            if (reset = '0')then
+                spec_reg_s  <= '0';
+                spec_lock   <= '0';
+            else
+                if((flush_pipe_i = '1' or clear_spec_s = '1') and spec_lock = '1') then
+                    spec_reg_s  <= '0';
+                    spec_lock   <= '0';
+                elsif(fetch_is_spec_i = '1' and spec_lock = '0') then
+                    spec_reg_s  <= '1';
+                    spec_lock   <= '1';
+                end if;
+          end if;
+       end if;
+    end process;
     
     --*********************************************************
     
@@ -275,18 +322,35 @@ begin
     IF_ID : process (clk) is
     begin
         if rising_edge(clk) then
-            if reset = '0' or if_id_flush_i = '1' then
+            if reset = '0' or flush_pipe_i = '1' then --  or if_id_flush_i = '1' 
+                decode_is_jump_s        <= '0';
                 decode_instruction_s    <= (others => '0');
                 decode_pc_reg_s         <= (others => '0');
-            elsif stall_id_i = '0' then
+                decode_spec_instr_s     <= '0';
+                decode_instr_valid_s    <= '0';
+                
+                
+            elsif stall_id_i = '0'then 
+                decode_is_jump_s        <= fetch_is_jump_i;
                 decode_instruction_s    <= fetch_instruction_s;
-                decode_pc_reg_s         <=  pc_reg_s;
+                if (decode_is_jump_s = '1') then -- BRANCH and JAL
+                    decode_pc_reg_s <= std_logic_vector(unsigned(decode_pc_reg_s) + unsigned(decode_imm_s));
+                else
+                    decode_pc_reg_s <= pc_reg_s;
+                end if;
+                if fetch_instruction_s = std_logic_vector(to_unsigned(0, DATA_WIDTH)) then
+                    decode_instr_valid_s <= '0';
+                else  
+                    decode_instr_valid_s    <= fetch_instr_valid_s;
+                end if;
+                if(clear_spec_s = '1') then
+                    decode_spec_instr_s     <=  '0';
+                else
+                    decode_spec_instr_s     <=  spec_reg_s;
+                end if;
             end if;
         end if;
     end process;
-    
-    -- B type instr jump addr
-    -- fetch_branch_adder_s <= std_logic_vector(unsigned(decode_imm_s) + unsigned(pc_reg_s));
     
     -- Module for extracting/extending the immediate
     immediate_1 : entity work.immediate
@@ -295,9 +359,7 @@ begin
             instr_format_i  => decode_instr_format_i,
             imm_extended_o  => decode_imm_s
             );
-            
-    instruction_o <= decode_instruction_s;
-
+    
     --********************************************************
     
     --*********** REGISTER RENAMING STAGE ********************
@@ -305,13 +367,15 @@ begin
     ID_RN : process (clk) is
     begin
         if (rising_edge(clk)) then
-            if (reset = '0')then
+            if reset = '0' or flush_pipe_i = '1' then
                 rename_rs1_arch_addr_s  <= (others => '0');
                 rename_rs2_arch_addr_s  <= (others => '0');
                 rename_rd_arch_addr_s   <= (others => '0');
                 rename_imm_s            <= (others => '0');
                 rename_pc_reg_s         <= (others => '0');
                 rename_instruction      <= (others => '0');
+                rename_instr_valid_s    <= '0';
+                rename_spec_instr_s     <= '0';
                 
             elsif stall_rn_i = '0' then
                 rename_rs1_arch_addr_s  <= decode_instruction_s(19 downto 15);
@@ -320,11 +384,15 @@ begin
                 rename_imm_s            <= decode_imm_s;
                 rename_pc_reg_s         <= decode_pc_reg_s;
                 rename_instruction      <= decode_instruction_s;
+                rename_instr_valid_s    <= decode_instr_valid_s and (not stall_id_i);
+                if(clear_spec_s = '1') then
+                    rename_spec_instr_s     <=  '0';
+                else
+                    rename_spec_instr_s     <=  decode_spec_instr_s;
+                end if;
             end if;
         end if;
     end process;
-    
-    rename_inst_valid <= '1' when (rename_instruction /= std_logic_vector(to_unsigned(0, DATA_WIDTH)) and stall_rn_i = '0') else '0';
     
     u_renaming_module: entity work.renaming_module
         generic map (
@@ -346,6 +414,10 @@ begin
             rename_rs1_used_i       => rename_rs1_used_i,
             rename_rs2_used_i       => rename_rs2_used_i,
             rd_we_i                 => rename_rd_we_i,
+            rename_snapshot_i       => rename_snapshot_i,
+            flush_i                 => flush_pipe_i,
+            
+            rename_instr_valid_i    => rename_instr_valid_s and (not stall_rn_i),
     
             cdb_valid_i             => cdb_valid_s, 
             cdb_rd_addr_i           => cdb_rd_addr_s,
@@ -357,7 +429,6 @@ begin
             rs1_ready_o             => rename_rs1_ready_s,
             rs2_ready_o             => rename_rs2_ready_s,
     
-            rob_rename_write_en_o   => rob_rename_write_en_s,
             rob_rename_rd_arch_o    => rob_rename_rd_arch_s,
             rob_rename_rd_phys_o    => rob_rename_rd_phys_s,
             rob_rename_prev_phys_o  => rob_rename_prev_phys_s,
@@ -372,19 +443,17 @@ begin
             free_list_fifo_empty_o  => free_list_fifo_empty_s
             );
         
-        free_list_fifo_empty_o  <= free_list_fifo_empty_s;
-        
-        -- Instruction for dispatch is also not valid if the rob is full 
-        rename_instr_valid_s    <= rename_inst_valid and ((not free_list_fifo_empty_s) or (not rob_full_s));
-        
+    free_list_fifo_empty_o  <= free_list_fifo_empty_s;
+    
     --********************************************************
     
-    --***************** ISSUE STAGE **************************
+    --***************** DISPATCH/ISSUE STAGE **************************
+    
     --RN/IS register
     process(clk)
     begin
         if rising_edge(clk) then
-            if reset = '0' then
+            if reset = '0' or flush_pipe_i = '1' then
                 dispatch_rs1_addr_s     <= (others => '0');
                 dispatch_rs2_addr_s     <= (others => '0');
                 dispatch_rd_addr_s      <= (others => '0');
@@ -398,6 +467,7 @@ begin
                 dispatch_valid_s        <= '0';
                 dispatch_rob_idx_s      <= (others => '0');
                 dispatch_instruction    <= (others => '0');
+                dispatch_spec_instr_s   <= '0';
                 
             elsif stall_is_i = '0' then
                 dispatch_rs1_addr_s     <= rename_rs1_phys_addr_s;
@@ -410,9 +480,14 @@ begin
                 dispatch_pc_reg_s       <= rename_pc_reg_s;
                 
                 dispatch_imm_s          <= rename_imm_s;
-                dispatch_valid_s        <= rename_instr_valid_s;
+                dispatch_valid_s        <= rename_instr_valid_s and (not stall_rn_i);
                 dispatch_rob_idx_s      <= rob_rename_tail_idx_s;
                 dispatch_instruction    <= rename_instruction;
+                if(clear_spec_s = '1') then
+                    dispatch_spec_instr_s     <=  '0';
+                else
+                    dispatch_spec_instr_s     <=  rename_spec_instr_s;
+                end if;
             end if;
         end if;
     end process;
@@ -428,8 +503,8 @@ begin
         port map (
             clk                      => clk,
             reset                    => reset,
-    
-            dispatch_valid_i         => dispatch_valid_s, 
+            
+            dispatch_valid_i         => dispatch_valid_s and (not stall_is_i), 
             dispatch_rs1_addr_i      => dispatch_rs1_addr_s,
             dispatch_rs2_addr_i      => dispatch_rs2_addr_s,
             dispatch_rd_addr_i       => dispatch_rd_addr_s,
@@ -445,11 +520,15 @@ begin
             
             dispatch_rob_idx_i       => dispatch_rob_idx_s,
             dispatch_instruction     => dispatch_instruction,
-        
+            spec_instr_i             => dispatch_spec_instr_s,
+            
+            flush_pipe_i             => flush_pipe_i,
+            
             cdb_addr_i               => cdb_rd_addr_s,
             cdb_valid_i              => cdb_valid_s,
     
             stall_iq_is_i            => stall_iq_is_i,
+            clear_spec_i             => clear_spec_s,
             
             issue_valid_o            => issue_valid_s,
             
@@ -460,6 +539,7 @@ begin
             
             issue_instr_type_o       => issue_instr_type_s,
             issue_instr_subtype_o    => issue_instr_subtype_s,
+            spec_instr_o             => issue_spec_instr_s,
             
             issue_rs1_ready_o        => issue_rs1_ready_s,      
             issue_rs2_ready_o        => issue_rs2_ready_s,      
@@ -480,7 +560,7 @@ begin
     process (clk)
     begin
         if (rising_edge(clk)) then
-            if (reset = '0') then
+            if reset = '0' or flush_pipe_i = '1' then
                 execute_valid_s         <= '0';
                 execute_rs1_ready_s     <= '0';  
                 execute_rs2_ready_s     <= '0';
@@ -495,6 +575,7 @@ begin
                 execute_pc_reg_s        <= (others => '0');
                 execute_rob_idx_s       <= (others => '0'); 
                 execute_instruction     <= (others => '0'); 
+                execute_spec_instr_s    <= '0';
                  
             elsif stall_ex_i = '0' then
                 execute_valid_s         <= issue_valid_s;
@@ -511,6 +592,11 @@ begin
                 execute_imm_s           <= issue_imm_s;     
                 execute_pc_reg_s        <= issue_pc_reg_s;     
                 execute_instruction     <= issue_instruction;
+                if(clear_spec_s = '1') then
+                    execute_spec_instr_s     <=  '0';
+                else
+                    execute_spec_instr_s     <=  issue_spec_instr_s;
+                end if;
             end if;
         end if;
     end process;
@@ -546,7 +632,7 @@ begin
             clk                 => clk,
             reset               => reset,
             
-            execute_valid_i         => execute_valid_s,
+            execute_valid_i         => execute_valid_s and (not stall_ex_i),
             
             execute_rs1_addr_i      => execute_rs1_addr_s,
             execute_rs2_addr_i      => execute_rs2_addr_s,
@@ -557,6 +643,8 @@ begin
             
             execute_instr_type_i    => execute_instr_type_s,
             execute_instr_subtype_i => execute_instr_subtype_s,
+            execute_spec_instr_i    => execute_spec_instr_s,
+            flush_pipe_i            => flush_pipe_i,
             
             execute_rs1_ready_i     => execute_rs1_ready_s,
             execute_rs2_ready_i     => execute_rs2_ready_s,
@@ -564,10 +652,12 @@ begin
             execute_imm_i           => execute_imm_s,
             
             execute_pc_reg_i        => execute_pc_reg_s,
+            clear_spec_i            => clear_spec_s,
             
             rs_full_o               => rs_full_o,
-            branch_taken_o          => branch_taken_o,
-            branch_imm_o            => branch_imm_s,
+            branch_taken_o          => branch_taken_s,
+            branch_taken_valid_o    => branch_taken_valid_s,
+            branch_taken_idx_o      => branch_taken_idx_s,
             
             cdb_valid_o             => cdb_valid_s,
             cdb_data_o              => cdb_data_s,
@@ -589,45 +679,52 @@ begin
         generic map (
             DATA_WIDTH      => DATA_WIDTH,
             ROB_DEPTH       => ROB_DEPTH,
-            ROB_ADDR_BITS   => ROB_ADDR_BITS,   -- log2()
+            ROB_ADDR_BITS   => ROB_ADDR_BITS,
             ARCH_ADDR_BITS  => ARCH_ADDR_BITS,
             NUM_PHYS_REGS   => NUM_PHYS_REGS,
             PHYS_ADDR_BITS  => PHYS_ADDR_BITS
         )
         port map (
-            clk               => clk,
-            reset             => reset,
+            clk                     => clk,
+            reset                   => reset,
             
             -- Rename
-            rob_write_en_i      => rob_rename_write_en_s,   
-            rename_rd_arch_i    => rob_rename_rd_arch_s,   
-            rename_rd_phys_i    => rob_rename_rd_phys_s,   
-            rename_prev_phys_i  => rob_rename_prev_phys_s,
-            rename_rd_instr_i   => rob_rename_rd_instr_s, 
-            rename_fifo_empty_i => free_list_fifo_empty_s,
-            rob_tail_idx_o      => rob_rename_tail_idx_s,    
+            rename_instr_valid_i    => rename_instr_valid_s and (not stall_rn_i) and (not flush_pipe_i),   
+            
+            rename_rd_arch_i        => rob_rename_rd_arch_s,   
+            rename_rd_phys_i        => rob_rename_rd_phys_s,   
+            rename_prev_phys_i      => rob_rename_prev_phys_s,
+            rename_rd_instr_i       => rob_rename_rd_instr_s, 
+            rob_tail_idx_o          => rob_rename_tail_idx_s,    
+            rename_spec_instr_i     => rename_spec_instr_s,
+            rename_instruction_i    => rename_instruction,
             
             -- WB
-            wb_valid_i          => cdb_valid_s,
-            wb_rob_idx_i        => wb_rob_idx_s,
+            wb_valid_i              => cdb_valid_s,
+            wb_rob_idx_i            => wb_rob_idx_s,
             
             -- Branch addr port
-            branch_addr_i         => rob_branch_addr_s,
-            branch_addr_valid_i   => rob_branch_addr_valid_s,
-            branch_addr_tag_i     => rob_branch_idx_s,
+            branch_addr_i           => rob_branch_addr_s,
+            branch_addr_valid_i     => rob_branch_addr_valid_s,
+            branch_addr_tag_i       => rob_branch_idx_s,
+            
+            branch_taken_i          => branch_taken_s,
+            branch_taken_valid_i    => branch_taken_valid_s,
+            branch_taken_idx_i      => branch_taken_idx_s,
             
             -- Commit
-            commit_valid_o      => rob_commit_valid_s,
-            commit_rd_arch_o    => rob_commit_rd_arch_s,
-            commit_rd_phys_o    => rob_commit_rd_phys_s,
-            commit_prev_phys_o  => rob_commit_prev_phys_s,
-            commit_rd_instr_o   => rob_commit_rd_instr_s,
+            commit_valid_o          => rob_commit_valid_s,
+            commit_rd_arch_o        => rob_commit_rd_arch_s,
+            commit_rd_phys_o        => rob_commit_rd_phys_s,
+            commit_prev_phys_o      => rob_commit_prev_phys_s,
+            commit_rd_instr_o       => rob_commit_rd_instr_s,
             
-            commit_jump_addr_o  => pc_jump_addr_s,
-            commit_pc_valid_o   => pc_next_sel_s,
+            commit_jump_addr_o      => pc_revert_addr_s,
+            misspredict_o           => misspredict_o,
+            clear_spec_o            => clear_spec_s,
             
-            rob_full_o          => rob_full_s,
-            rob_empty_o         => rob_empty_s
+            rob_full_o              => rob_full_s,
+            rob_empty_o             => rob_empty_s
         );
     
     --********************************************************

@@ -8,14 +8,16 @@ entity free_list_fifo is
         DATA_WIDTH  : natural := 6
     );
     port (
-        clk       : in  std_logic;
-        reset     : in  std_logic;
-        push      : in  std_logic;
-        push_data : in  std_logic_vector(DATA_WIDTH-1 downto 0);
-        pop       : in  std_logic;
-        pop_data  : out std_logic_vector(DATA_WIDTH-1 downto 0);
-        empty     : out std_logic;
-        full      : out std_logic
+        clk         : in  std_logic;
+        reset       : in  std_logic;
+        push        : in  std_logic;
+        push_data   : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+        pop         : in  std_logic;
+        snapshot_i  : in  std_logic;
+        flush_i     : in  std_logic;
+        pop_data    : out std_logic_vector(DATA_WIDTH-1 downto 0);
+        empty       : out std_logic;
+        full        : out std_logic
     );
 end free_list_fifo;
 
@@ -42,14 +44,15 @@ architecture Behavioral of free_list_fifo is
     end function;
     
     signal mem              : mem_type := init_mem;  -- Initialize directly with all physical registers
+    signal mem_snap         : mem_type := init_mem;  -- Initialize directly with all physical registers
     signal wr_ptr, rd_ptr   : integer range 0 to DEPTH-1 := 0;
     signal full_s, empty_s  : std_logic;
     signal push_valid       : std_logic;
     
 begin
-
+    
     push_valid <= '1' when push_data /= std_logic_vector(to_unsigned(0, DATA_WIDTH)) else '0';
-
+    
     process(clk)
     begin
         if rising_edge(clk) then
@@ -82,10 +85,18 @@ begin
                         rd_ptr <= rd_ptr + 1;
                     end if;    
                 end if;
+                
+                if snapshot_i = '1' then
+                    mem_snap <= mem;
+                end if;
+                
+                if flush_i = '1' then
+                    mem <= mem_snap;
+                end if;
             end if;
         end if;
     end process;
-
+    
     -- Outputs
     -- Synch read ?
     pop_data <= mem(rd_ptr).value;

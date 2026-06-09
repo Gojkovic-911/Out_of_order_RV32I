@@ -3,6 +3,7 @@ USE ieee.std_logic_1164.ALL;
 USE ieee.numeric_std.ALL;
 use ieee.math_real.all;
 use work.alu_ops_pkg.all;
+use work.instr_types_pkg.all;
 
 entity branch_decision_unit is
     generic(
@@ -10,7 +11,7 @@ entity branch_decision_unit is
     Port (  branch_condition_o  : out std_logic;
             a_i                 : in STD_LOGIC_VECTOR(DATA_WIDTH-1 DOWNTO 0); -- first operand
             b_i                 : in STD_LOGIC_VECTOR(DATA_WIDTH-1 DOWNTO 0); -- second operand
-            funct3_i            : in std_logic_vector(2 downto 0)
+            funct3_i            : in std_logic_vector(4 downto 0)
             );
 end branch_decision_unit;
 
@@ -20,42 +21,42 @@ begin
     process (funct3_i, a_i, b_i)
     begin
     case funct3_i is
-        when "000"  =>  -- BEQ | "001"
+        when BEQ  =>
             if(a_i = b_i) then
                 branch_condition_o <= '1';
             else
                 branch_condition_o <= '0';
             end if;
             
-        when "001" =>   -- BNE
+        when BNE => 
             if(a_i = b_i) then
                 branch_condition_o <= '0';
             else
                 branch_condition_o <= '1';
             end if;
                 
-        when "100" =>  -- BLT
+        when BLT => 
             if(signed(a_i) < signed(b_i)) then
                 branch_condition_o <= '1';
             else
                 branch_condition_o <= '0';
             end if;
             
-        when "101" =>  -- BGE
+        when BGE =>  
             if(signed(a_i) < signed(b_i)) then
                 branch_condition_o <= '0';
             else
                 branch_condition_o <= '1';
             end if;
             
-        when "110" =>  -- BLTU
+        when BLTU => 
             if (unsigned(a_i) < unsigned(b_i)) then
                 branch_condition_o <= '1';
             else
                 branch_condition_o <= '0';
             end if;  
             
-        when "111" =>  -- BGEU
+        when BGEU => 
             if (unsigned(a_i) < unsigned(b_i)) then
                 branch_condition_o <= '0';
             else
