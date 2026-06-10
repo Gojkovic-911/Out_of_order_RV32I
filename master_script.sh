@@ -9,6 +9,7 @@ export INPUT_FILE
 
 # Configuration
 BIN_CONVERSION_SCRIPT="RV32I/scripts/convert_bin.sh"
+VIVADO=$(locate bin/vivado | grep '/bin/vivado$')
 
 export GOLDEN_FILE="RV32I/scripts/golden_vector_regs.txt"
 export SIM_DUMP_FILE="RV32I/scripts/register_dump.txt"
@@ -31,7 +32,7 @@ echo -e "${YELLOW}[1/2] Starting Vivado...${NC}"
 
 $BIN_CONVERSION_SCRIPT
 
-~/Public/Vivado/2023.2/bin/vivado -mode batch -source RV32I/vivado/RISCV.tcl -nojournal -nolog
+$VIVADO -mode batch -source RV32I/vivado/RISCV.tcl -nojournal -nolog
 
 echo -e "${GREEN}Vivado simulation completed. Dump file: $SIM_DUMP_FILE${NC}"
 
