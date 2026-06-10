@@ -29,7 +29,7 @@ echo -e "${YELLOW}[1/2] Starting Vivado...${NC}"
 
 $BIN_CONVERSION_SCRIPT
 
-~/Public/Vivado/2023.2/bin/vivado -mode batch -source RISCV.tcl -nojournal -nolog
+~/Public/Vivado/2023.2/bin/vivado -mode batch -source RV32I/scripts/RISCV.tcl -nojournal -nolog
 
 echo -e "${GREEN}Vivado simulation completed. Dump file: $SIM_DUMP_FILE${NC}"
 
