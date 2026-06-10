@@ -76,6 +76,9 @@ architecture Behavioral of renaming_module is
     -- ROB signals
     signal phys_ready_reg               : std_logic_vector(NUM_PHYS_REGS-1 downto 0);
     signal phys_ready_next              : std_logic_vector(NUM_PHYS_REGS-1 downto 0);
+    signal phys_ready_snap_next              : std_logic_vector(NUM_PHYS_REGS-1 downto 0);
+    
+    signal phys_ready_reg_snapshot      : std_logic_vector(NUM_PHYS_REGS-1 downto 0);
     
     -- WE signal
     signal rename_table_we_s : std_logic;
@@ -117,6 +120,8 @@ begin
         if rising_edge(clk) then
             if (reset = '0')then
                 rename_table_s <= (others => (others => '0'));
+            elsif( flush_i = '1') then
+                rename_table_s <= commit_rename_table_s;    
             elsif (rename_table_we_s = '1') then
                 if(to_integer(unsigned(rd_arch_addr_i)) /= 0) then
                     rename_table_s(to_integer(unsigned(rd_arch_addr_i))) <= rd_phys_addr_s;
@@ -151,20 +156,46 @@ begin
       if (rising_edge(clk)) then
          if (reset = '0')then
             phys_ready_reg <= std_logic_vector(to_unsigned(1, NUM_PHYS_REGS));
+         elsif(flush_i = '1') then
+            phys_ready_reg <= phys_ready_reg_snapshot;
          else
             phys_ready_reg <= phys_ready_next;
          end if;
       end if;
     end process; 
     
+    physical_ready_bits_snap:
+    process (clk) is
+    begin
+        if (rising_edge(clk)) then
+            if (reset = '0')then
+                phys_ready_reg_snapshot <= (others => '0');
+            elsif rename_snapshot_i = '1' then
+                phys_ready_reg_snapshot <= phys_ready_next;
+            else
+                phys_ready_reg_snapshot <= phys_ready_snap_next;
+            end if;
+        end if;
+    end process; 
     
+    physical_ready_bits:
+    process(rob_commit_valid_i, rob_commit_rd_phys_i)
+    begin
+        phys_ready_snap_next <= phys_ready_reg_snapshot;
+        for i in 0 to NUM_PHYS_REGS-1 loop
+            if (rob_commit_valid_i = '1' and to_integer(unsigned(rob_commit_rd_phys_i)) = i) then
+                phys_ready_snap_next(i) <= '1';
+            end if;
+        end loop;
+    end process;
+            
     -- Priority logic to set/reset the ready bits
     -- 1) If the current register is being renamed then it's reset
     -- 2) If the current register is being written as ready from cdb, then it's set
     physical_ready_bits_comb:
     process(rename_table_we_s, cdb_valid_i, rd_phys_addr_s, cdb_rd_addr_i, phys_ready_reg)
     begin
-        phys_ready_next <= phys_ready_reg; -- default value ??
+        phys_ready_next <= phys_ready_reg;
         
         for i in 0 to NUM_PHYS_REGS-1 loop
             if (rename_table_we_s = '1' and (to_integer(unsigned(rd_phys_addr_s)) = i)) then

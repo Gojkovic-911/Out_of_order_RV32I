@@ -34,6 +34,7 @@ add_files -norecurse ./RV32I/data_path/data_path.vhd
 add_files -norecurse ./RV32I/control_path/control_path.vhd 
 add_files -norecurse ./RV32I/control_path/alu_decoder.vhd 
 add_files -norecurse ./RV32I/control_path/ctrl_decoder.vhd 
+add_files -norecurse ./RV32I/control_path/branch_predictor.vhd 
 add_files -norecurse ./RV32I/packages/alu_ops_pkg.vhd 
 add_files -norecurse ./RV32I/packages/instr_types_pkg.vhd
 add_files -norecurse ./RV32I/packages/txt_util.vhd

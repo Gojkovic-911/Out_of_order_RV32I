@@ -100,6 +100,8 @@ begin
                 clear_spec_o <= '0';
                 
             else  
+                commit_valid_o      <= '0';
+                
                 -- Rename stage
                 if rename_instr_valid_i = '1' and rob(tail).valid = '0' then
                     rob(tail).valid     <= '1';

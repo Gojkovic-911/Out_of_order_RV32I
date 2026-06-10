@@ -13,15 +13,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="0.000000 us"></ZoomStartTime>
-      <ZoomEndTime time="52.400001 us"></ZoomEndTime>
-      <Cursor1Time time="24.750000 us"></Cursor1Time>
+      <ZoomStartTime time="2.041666 us"></ZoomStartTime>
+      <ZoomEndTime time="53.941667 us"></ZoomEndTime>
+      <Cursor1Time time="51.000000 us"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="271"></NameColumnWidth>
-      <ValueColumnWidth column_width="265"></ValueColumnWidth>
+      <NameColumnWidth column_width="284"></NameColumnWidth>
+      <ValueColumnWidth column_width="77"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="56" />
+   <WVObjectSize size="59" />
    <wvobject type="logic" fp_name="/TOP_RISCV_tb/clk">
       <obj_property name="ElementShortName">clk</obj_property>
       <obj_property name="ObjectShortName">clk</obj_property>
@@ -129,10 +129,12 @@
       <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/phys_ready_reg">
          <obj_property name="ElementShortName">phys_ready_reg[63:0]</obj_property>
          <obj_property name="ObjectShortName">phys_ready_reg[63:0]</obj_property>
+         <obj_property name="isExpanded"></obj_property>
       </wvobject>
       <wvobject type="group" fp_name="group125">
          <obj_property name="label">ARCH_REGS</obj_property>
          <obj_property name="DisplayName">label</obj_property>
+         <obj_property name="isExpanded"></obj_property>
          <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/rename_rd_arch_addr_s">
             <obj_property name="ElementShortName">rename_rd_arch_addr_s[4:0]</obj_property>
             <obj_property name="ObjectShortName">rename_rd_arch_addr_s[4:0]</obj_property>
@@ -152,6 +154,7 @@
       <wvobject type="group" fp_name="group124">
          <obj_property name="label">PHYS_REGS</obj_property>
          <obj_property name="DisplayName">label</obj_property>
+         <obj_property name="isExpanded"></obj_property>
          <wvobject type="logic" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/cdb_valid_i">
             <obj_property name="ElementShortName">cdb_valid_i</obj_property>
             <obj_property name="ObjectShortName">cdb_valid_i</obj_property>
@@ -694,6 +697,14 @@
       <obj_property name="ElementShortName">mem[0:63]</obj_property>
       <obj_property name="ObjectShortName">mem[0:63]</obj_property>
    </wvobject>
+   <wvobject type="logic" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/u_free_list_fifo/snapshot_i">
+      <obj_property name="ElementShortName">snapshot_i</obj_property>
+      <obj_property name="ObjectShortName">snapshot_i</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/u_free_list_fifo/mem_snap">
+      <obj_property name="ElementShortName">mem_snap[0:63]</obj_property>
+      <obj_property name="ObjectShortName">mem_snap[0:63]</obj_property>
+   </wvobject>
    <wvobject type="logic" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/u_free_list_fifo/full_s">
       <obj_property name="ElementShortName">full_s</obj_property>
       <obj_property name="ObjectShortName">full_s</obj_property>
@@ -729,6 +740,7 @@
    <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/phys_ready_reg">
       <obj_property name="ElementShortName">phys_ready_reg[63:0]</obj_property>
       <obj_property name="ObjectShortName">phys_ready_reg[63:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/phys_ready_next">
       <obj_property name="ElementShortName">phys_ready_next[63:0]</obj_property>
@@ -737,468 +749,14 @@
    <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s">
       <obj_property name="ElementShortName">commit_rename_table_s[0:31][5:0]</obj_property>
       <obj_property name="ObjectShortName">commit_rename_table_s[0:31][5:0]</obj_property>
-      <obj_property name="isExpanded"></obj_property>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[0]">
-         <obj_property name="ElementShortName">[0][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[0][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[1]">
-         <obj_property name="ElementShortName">[1][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[1][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[2]">
-         <obj_property name="ElementShortName">[2][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[2][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[3]">
-         <obj_property name="ElementShortName">[3][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[3][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[4]">
-         <obj_property name="ElementShortName">[4][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[4][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[5]">
-         <obj_property name="ElementShortName">[5][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[5][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[6]">
-         <obj_property name="ElementShortName">[6][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[6][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[7]">
-         <obj_property name="ElementShortName">[7][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[7][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[8]">
-         <obj_property name="ElementShortName">[8][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[8][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[9]">
-         <obj_property name="ElementShortName">[9][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[9][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[10]">
-         <obj_property name="ElementShortName">[10][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[10][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[11]">
-         <obj_property name="ElementShortName">[11][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[11][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[12]">
-         <obj_property name="ElementShortName">[12][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[12][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[13]">
-         <obj_property name="ElementShortName">[13][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[13][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[14]">
-         <obj_property name="ElementShortName">[14][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[14][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[15]">
-         <obj_property name="ElementShortName">[15][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[15][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[16]">
-         <obj_property name="ElementShortName">[16][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[16][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[17]">
-         <obj_property name="ElementShortName">[17][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[17][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[18]">
-         <obj_property name="ElementShortName">[18][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[18][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[19]">
-         <obj_property name="ElementShortName">[19][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[19][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[20]">
-         <obj_property name="ElementShortName">[20][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[20][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[21]">
-         <obj_property name="ElementShortName">[21][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[21][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[22]">
-         <obj_property name="ElementShortName">[22][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[22][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[23]">
-         <obj_property name="ElementShortName">[23][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[23][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[24]">
-         <obj_property name="ElementShortName">[24][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[24][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[25]">
-         <obj_property name="ElementShortName">[25][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[25][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[26]">
-         <obj_property name="ElementShortName">[26][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[26][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[27]">
-         <obj_property name="ElementShortName">[27][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[27][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[28]">
-         <obj_property name="ElementShortName">[28][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[28][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[29]">
-         <obj_property name="ElementShortName">[29][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[29][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[30]">
-         <obj_property name="ElementShortName">[30][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[30][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/commit_rename_table_s[31]">
-         <obj_property name="ElementShortName">[31][5:0]</obj_property>
-         <obj_property name="ObjectShortName">[31][5:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
+   </wvobject>
+   <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/rename_table_s">
+      <obj_property name="ElementShortName">rename_table_s[0:31][5:0]</obj_property>
+      <obj_property name="ObjectShortName">rename_table_s[0:31][5:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s">
       <obj_property name="ElementShortName">phys_regs_s[0:63][31:0]</obj_property>
       <obj_property name="ObjectShortName">phys_regs_s[0:63][31:0]</obj_property>
       <obj_property name="Radix">OCTALRADIX</obj_property>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[0]">
-         <obj_property name="ElementShortName">[0][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[0][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[1]">
-         <obj_property name="ElementShortName">[1][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[1][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[2]">
-         <obj_property name="ElementShortName">[2][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[2][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[3]">
-         <obj_property name="ElementShortName">[3][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[3][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[4]">
-         <obj_property name="ElementShortName">[4][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[4][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[5]">
-         <obj_property name="ElementShortName">[5][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[5][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[6]">
-         <obj_property name="ElementShortName">[6][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[6][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[7]">
-         <obj_property name="ElementShortName">[7][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[7][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[8]">
-         <obj_property name="ElementShortName">[8][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[8][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[9]">
-         <obj_property name="ElementShortName">[9][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[9][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[10]">
-         <obj_property name="ElementShortName">[10][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[10][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[11]">
-         <obj_property name="ElementShortName">[11][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[11][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[12]">
-         <obj_property name="ElementShortName">[12][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[12][31:0]</obj_property>
-         <obj_property name="Radix">HEXRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[13]">
-         <obj_property name="ElementShortName">[13][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[13][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[14]">
-         <obj_property name="ElementShortName">[14][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[14][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[15]">
-         <obj_property name="ElementShortName">[15][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[15][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[16]">
-         <obj_property name="ElementShortName">[16][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[16][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[17]">
-         <obj_property name="ElementShortName">[17][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[17][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[18]">
-         <obj_property name="ElementShortName">[18][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[18][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[19]">
-         <obj_property name="ElementShortName">[19][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[19][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[20]">
-         <obj_property name="ElementShortName">[20][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[20][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[21]">
-         <obj_property name="ElementShortName">[21][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[21][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[22]">
-         <obj_property name="ElementShortName">[22][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[22][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[23]">
-         <obj_property name="ElementShortName">[23][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[23][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[24]">
-         <obj_property name="ElementShortName">[24][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[24][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[25]">
-         <obj_property name="ElementShortName">[25][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[25][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[26]">
-         <obj_property name="ElementShortName">[26][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[26][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[27]">
-         <obj_property name="ElementShortName">[27][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[27][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[28]">
-         <obj_property name="ElementShortName">[28][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[28][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[29]">
-         <obj_property name="ElementShortName">[29][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[29][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[30]">
-         <obj_property name="ElementShortName">[30][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[30][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[31]">
-         <obj_property name="ElementShortName">[31][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[31][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[32]">
-         <obj_property name="ElementShortName">[32][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[32][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[33]">
-         <obj_property name="ElementShortName">[33][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[33][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[34]">
-         <obj_property name="ElementShortName">[34][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[34][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[35]">
-         <obj_property name="ElementShortName">[35][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[35][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[36]">
-         <obj_property name="ElementShortName">[36][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[36][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[37]">
-         <obj_property name="ElementShortName">[37][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[37][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[38]">
-         <obj_property name="ElementShortName">[38][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[38][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[39]">
-         <obj_property name="ElementShortName">[39][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[39][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[40]">
-         <obj_property name="ElementShortName">[40][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[40][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[41]">
-         <obj_property name="ElementShortName">[41][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[41][31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[42]">
-         <obj_property name="ElementShortName">[42][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[42][31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[43]">
-         <obj_property name="ElementShortName">[43][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[43][31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[44]">
-         <obj_property name="ElementShortName">[44][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[44][31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[45]">
-         <obj_property name="ElementShortName">[45][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[45][31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[46]">
-         <obj_property name="ElementShortName">[46][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[46][31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[47]">
-         <obj_property name="ElementShortName">[47][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[47][31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[48]">
-         <obj_property name="ElementShortName">[48][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[48][31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[49]">
-         <obj_property name="ElementShortName">[49][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[49][31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[50]">
-         <obj_property name="ElementShortName">[50][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[50][31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[51]">
-         <obj_property name="ElementShortName">[51][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[51][31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[52]">
-         <obj_property name="ElementShortName">[52][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[52][31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[53]">
-         <obj_property name="ElementShortName">[53][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[53][31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[54]">
-         <obj_property name="ElementShortName">[54][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[54][31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[55]">
-         <obj_property name="ElementShortName">[55][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[55][31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[56]">
-         <obj_property name="ElementShortName">[56][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[56][31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[57]">
-         <obj_property name="ElementShortName">[57][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[57][31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[58]">
-         <obj_property name="ElementShortName">[58][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[58][31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[59]">
-         <obj_property name="ElementShortName">[59][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[59][31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[60]">
-         <obj_property name="ElementShortName">[60][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[60][31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[61]">
-         <obj_property name="ElementShortName">[61][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[61][31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[62]">
-         <obj_property name="ElementShortName">[62][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[62][31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/phys_regs_s[63]">
-         <obj_property name="ElementShortName">[63][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[63][31:0]</obj_property>
-      </wvobject>
    </wvobject>
 </wave_config>
