@@ -12,4 +12,6 @@
 *.ip_user_files/
 *.sim/
 RISCV_project
-
+.Xil/
+register_dump.txt
+comparison_result.txt
