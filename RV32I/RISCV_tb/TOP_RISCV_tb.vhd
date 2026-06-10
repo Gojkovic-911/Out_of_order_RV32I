@@ -5,28 +5,30 @@ use ieee.std_logic_textio.all;
 use std.textio.all;
 use work.txt_util.all;
 
+library std;
+use std.env.all;                     -- for std.env.stop
 
 entity TOP_RISCV_tb is
 generic (
-        Vivado_version    :std_logic  := '0'
+        Vivado_version    : std_logic := '0'
     );
 -- port ();
 end entity;
 
 architecture Behavioral of TOP_RISCV_tb is
-   -- Operand za pristup asemblerskom kodu programa
-   file RISCV_instructions             : text open read_mode is "../../../../../RISCV_tb/assembly_code_bin.txt";
-   -- Globalni signali
+   -- File containing the binary instructions (assembly code)
+   file RISCV_instructions             : text open read_mode is "../../../../../../RISCV_tb/assembly_code_bin.txt";
+   -- Global signals
    signal clk                          : std_logic := '0';
    signal reset                        : std_logic;
-   -- Signali memorije za instrukcije
+   -- Instruction memory signals
    signal ena_instr_s, enb_instr_s     : std_logic;
    signal wea_instr_s, web_instr_s     : std_logic_vector(3 downto 0);
    signal addra_instr_s, addrb_instr_s : std_logic_vector(9 downto 0);
    signal dina_instr_s, dinb_instr_s   : std_logic_vector(31 downto 0);
    signal douta_instr_s, doutb_instr_s : std_logic_vector(31 downto 0);
    signal addrb_instr_32_s             : std_logic_vector(31 downto 0);
-   -- Signali memorije za podatke
+   -- Data memory signals
    signal ena_data_s, enb_data_s       : std_logic;
    signal wea_data_s, web_data_s       : std_logic_vector(3 downto 0);
    signal addra_data_s, addrb_data_s   : std_logic_vector(9 downto 0);
@@ -36,26 +38,26 @@ architecture Behavioral of TOP_RISCV_tb is
 
 begin
 
-   -- Memorija za instrukcije
-   -- Pristup A : Koristi se za inicijalizaciju memorije za instrukcije
-   -- Pristup B : Koristi se za citanje instrukcija od strane procesora 
-   -- Konstante:
+   -- Instruction memory
+   -- Port A: used to initialize the instruction memory
+   -- Port B: used by the processor to fetch instructions
+   -- Constants:
    ena_instr_s   <= '1';
    enb_instr_s   <= '1';
    addrb_instr_s <= addrb_instr_32_s(9 downto 0);
    web_instr_s   <= (others => '0');
    dinb_instr_s  <= (others => '0');
-   -- Instanca:
+   -- Instance:
    instruction_mem : entity work.BRAM(behavioral)
       generic map(WADDR => 10)
       port map (clk      => clk,
-                -- pristup A
+                -- port A
                 en_a_i   => ena_instr_s,
                 we_a_i   => wea_instr_s,
                 addr_a_i => addra_instr_s,
                 data_a_i => dina_instr_s,
                 data_a_o => douta_instr_s,
-                -- pristup B
+                -- port B
                 en_b_i   => enb_instr_s,
                 we_b_i   => web_instr_s,
                 addr_b_i => addrb_instr_s,
@@ -63,26 +65,26 @@ begin
                 data_b_o => doutb_instr_s);
 
 
-   -- Memorija za podatke
-   -- Pristup A : Koristi procesor kako bi upisivao i citao podatke
-   -- Pristup B : Ne koristi se
-   -- Konstante:
+   -- Data memory
+   -- Port A: used by the processor to read/write data
+   -- Port B: unused
+   -- Constants:
    addra_data_s <= addra_data_32_s(9 downto 0);
    addrb_data_s <= (others => '0');
    dinb_data_s  <= (others => '0');
    ena_data_s   <= '1';
    enb_data_s   <= '1';
-   -- Instanca:
+   -- Instance:
    data_mem : entity work.BRAM(behavioral)
       generic map(WADDR => 10)
       port map (clk      => clk,
-                -- pristup A
+                -- port A
                 en_a_i   => ena_data_s,
                 we_a_i   => wea_data_s,
                 addr_a_i => addra_data_s,
                 data_a_i => dina_data_s,
                 data_a_o => douta_data_s,
-                -- pristup B
+                -- port B
                 en_b_i   => enb_data_s,
                 we_b_i   => web_data_s,
                 addr_b_i => addrb_data_s,
@@ -90,7 +92,7 @@ begin
                 data_b_o => doutb_data_s);
 
 
-   -- Top Modul - RISCV procesor jezgro
+   -- Top module - RISC-V processor core
    TOP_RISCV_1 : entity work.TOP_RISCV
       port map (
          clk   => clk,
@@ -104,8 +106,8 @@ begin
          data_mem_rdata_i   => douta_data_s,
          data_mem_wdata_o   => dina_data_s);
 
-   -- Inicijalizacija memorije za instrukcije
-   -- Program koji ce procesor izvrsavati se ucitava u memoriju
+   -- Instruction memory initialization
+   -- The program to be executed by the processor is loaded into memory
    read_file_proc : process
       variable row : line;
       variable i   : integer := 0;
@@ -113,7 +115,7 @@ begin
       reset       <= '0';
       wea_instr_s <= (others => '1');
       wait until rising_edge(clk);
-      while (not endfile(RISCV_instructions))loop
+      while (not endfile(RISCV_instructions)) loop
          readline(RISCV_instructions, row);
          if (row'length > 0) then
             addra_instr_s <= std_logic_vector(to_unsigned(i, 10));
@@ -127,11 +129,29 @@ begin
       wait;
    end process;
 
-   -- klok signal generator
+   -- Clock generator
    clk_proc : process
    begin
       clk <= '1', '0' after 100 ns;
       wait for 200 ns;
+   end process;
+
+   -- Process that monitors doutb_instr_s
+   -- If it is 0 for 25 consecutive cycles, terminate the simulation (clean stop)
+   process(clk)
+      variable cnt : integer := 0;
+   begin
+      if rising_edge(clk) then
+         if doutb_instr_s = std_logic_vector(to_unsigned(0, 32)) then
+               cnt := cnt + 1;
+               if cnt > 25 then
+                  -- report "doutb_instr_s has been 0 for 25 cycles – stopping simulation";
+                  std.env.stop;   -- clean stop (VHDL-2008)
+               end if;
+         else
+               cnt := 0;
+         end if;
+      end if;
    end process;
 
 end architecture;

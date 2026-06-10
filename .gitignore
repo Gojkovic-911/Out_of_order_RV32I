@@ -15,3 +15,5 @@ RISCV_project
 .Xil/
 register_dump.txt
 comparison_result.txt
+cmp
+assembly_code_bin.txt

@@ -4,8 +4,10 @@
 # MASTER SCRIPT - runs Vivado, then calls comparison script
 # ======================================================
 
+INPUT_FILE=$1
+export INPUT_FILE
+
 # Configuration
-VIVADO_PROJECT="RV32I/RISCV_project/RISCV_project.xpr"
 BIN_CONVERSION_SCRIPT="RV32I/scripts/convert_bin.sh"
 
 export GOLDEN_FILE="RV32I/scripts/golden_vector_regs.txt"
@@ -29,7 +31,7 @@ echo -e "${YELLOW}[1/2] Starting Vivado...${NC}"
 
 $BIN_CONVERSION_SCRIPT
 
-~/Public/Vivado/2023.2/bin/vivado -mode batch -source RV32I/scripts/RISCV.tcl -nojournal -nolog
+~/Public/Vivado/2023.2/bin/vivado -mode batch -source RV32I/vivado/RISCV.tcl -nojournal -nolog
 
 echo -e "${GREEN}Vivado simulation completed. Dump file: $SIM_DUMP_FILE${NC}"
 
