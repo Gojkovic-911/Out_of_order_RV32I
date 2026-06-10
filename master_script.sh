@@ -5,13 +5,12 @@
 # ======================================================
 
 # Configuration
-GOLDEN_FILE="registers.txt"
-SIM_DUMP_FILE="register_dump.txt"
-VIVADO_PROJECT="RISCV_project/RISCV_project.xpr"
-TCL_DUMP_SCRIPT="reg_dump.tcl"
+VIVADO_PROJECT="RV32I/RISCV_project/RISCV_project.xpr"
+BIN_CONVERSION_SCRIPT="RV32I/scripts/convert_bin.sh"
 
-# Path to comparison script (change if needed)
-COMPARE_SCRIPT="./compare_script.sh"
+export GOLDEN_FILE="RV32I/scripts/golden_vector_regs.txt"
+export SIM_DUMP_FILE="RV32I/scripts/register_dump.txt"
+COMPARE_SCRIPT="RV32I/scripts/compare_regs.sh"
 
 # Colors
 RED='\033[0;31m'
@@ -26,25 +25,12 @@ echo "=========================================="
 # ======================================================
 # STEP 1: Run Vivado simulation
 # ======================================================
-echo -e "${YELLOW}[1/2] Starting Vivado simulation...${NC}"
+echo -e "${YELLOW}[1/2] Starting Vivado...${NC}"
 
-cat > run_sim.tcl << EOF
-open_project $VIVADO_PROJECT
-launch_simulation
-run 50 us
-source $TCL_DUMP_SCRIPT
-close_sim
-exit
-EOF
+$BIN_CONVERSION_SCRIPT
 
-~/Public/Vivado/2023.2/bin/vivado -mode batch -source run_sim.tcl -nojournal -nolog
+~/Public/Vivado/2023.2/bin/vivado -mode batch -source RISCV.tcl -nojournal -nolog
 
-if [ $? -ne 0 ]; then
-    echo -e "${RED}Error: Vivado simulation failed!${NC}"
-    exit 1
-fi
-
-rm -f run_sim.tcl
 echo -e "${GREEN}Vivado simulation completed. Dump file: $SIM_DUMP_FILE${NC}"
 
 # ======================================================
@@ -52,20 +38,9 @@ echo -e "${GREEN}Vivado simulation completed. Dump file: $SIM_DUMP_FILE${NC}"
 # ======================================================
 echo -e "${YELLOW}[2/2] Running comparison script...${NC}"
 
-if [ ! -f "$COMPARE_SCRIPT" ]; then
-    echo -e "${RED}Comparison script not found: $COMPARE_SCRIPT${NC}"
-    exit 1
-fi
-
 # Invoke the comparison script (assumes it reads the same files)
 $COMPARE_SCRIPT
 
 COMPARE_EXIT=$?
-
-if [ $COMPARE_EXIT -eq 0 ]; then
-    echo -e "${GREEN}All OK. Registers match.${NC}"
-else
-    echo -e "${RED}Comparison detected differences.${NC}"
-fi
 
 exit $COMPARE_EXIT

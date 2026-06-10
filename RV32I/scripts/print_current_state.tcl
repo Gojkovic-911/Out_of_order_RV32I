@@ -1,6 +1,6 @@
 # reg_dump.tcl
 # Open file for writing
-set dump_file [open "register_dump.txt" w]
+set dump_file [open "RV32I/scripts/register_dump.txt" w]
 
 # ===========================================
 # PHYSICAL REGISTERS

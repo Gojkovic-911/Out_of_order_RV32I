@@ -4,8 +4,6 @@
 # REGISTER COMPARISON - fix for hex format in rename table
 # ======================================================
 
-GOLDEN_FILE="/home/medivh/Downloads/registers.txt"
-SIM_DUMP_FILE="/home/medivh/register_dump.txt"
 RESULT_FILE="comparison_result.txt"
 
 RED='\033[0;31m'

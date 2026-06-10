@@ -14,7 +14,17 @@ set projectDir .\/RV32I/RISCV_project
 file mkdir $projectDir
 
 # MAKE A PROJECT
-create_project RISCV_project $projectDir -force 
+set project_name "RISCV_project"
+set project_file "$projectDir/$project_name.xpr"
+
+if { [file exists $project_file] } {
+    puts "Project already exists. Opening existing project..."
+    open_project $project_file
+} else {
+    puts "Project does not exist. Creating new project..."
+    create_project $project_name $projectDir -force
+
+
 # -part xc7z010clg400-1 
 # set_property board_part digilentinc.com:zybo-z7-10:part0:1.0 [current_project]
 
@@ -39,8 +49,18 @@ add_files -norecurse ./RV32I/packages/alu_ops_pkg.vhd
 add_files -norecurse ./RV32I/packages/instr_types_pkg.vhd
 add_files -norecurse ./RV32I/packages/txt_util.vhd
 add_files -norecurse ./RV32I/RISCV_tb/BRAM_byte_addressable.vhd
+add_files -fileset sim_1 -norecurse ./RV32I/RISCV_tb/TOP_RISCV_tb.vhd
+}
+
 update_compile_order -fileset sources_1
 set_property SOURCE_SET sources_1 [get_filesets sim_1]
-add_files -fileset sim_1 -norecurse ./RV32I/RISCV_tb/TOP_RISCV_tb.vhd
 update_compile_order -fileset sim_1
 
+launch_simulation
+run 50 us
+
+source RV32I/scripts/print_current_state.tcl
+
+close_sim
+
+exit
