@@ -78,6 +78,7 @@ architecture Behavioral of rob is
     
     signal rob_full_s       : std_logic;
     signal misspredict_s    : std_logic;
+    signal clear_spec_s     : std_logic;
     
 begin
     
@@ -97,7 +98,7 @@ begin
                 commit_prev_phys_o  <= (others => '0');
                 commit_rd_instr_o   <= '0';
                 misspredict_s <= '0';
-                clear_spec_o <= '0';
+                clear_spec_s <= '0';
                 
             else  
                 commit_valid_o      <= '0';
@@ -105,7 +106,11 @@ begin
                 -- Rename stage
                 if rename_instr_valid_i = '1' and rob(tail).valid = '0' then
                     rob(tail).valid     <= '1';
-                    rob(tail).ready     <= '0';
+                    if rename_instruction_i = x"00000013" then
+                        rob(tail).ready     <= '1';
+                    else
+                        rob(tail).ready     <= '0';
+                    end if;
                     rob(tail).rd_arch   <= rename_rd_arch_i;
                     rob(tail).rd_phys   <= rename_rd_phys_i;
                     rob(tail).prev_phys <= rename_prev_phys_i;
@@ -154,7 +159,7 @@ begin
                             end loop;
                             
                             tail <= (head + 1) mod ROB_DEPTH;
-                            clear_spec_o <= '0';
+                            clear_spec_s <= '0';
                             
                         else    -- if it's taken clear the spec fields
                             misspredict_s <= '0';
@@ -165,7 +170,7 @@ begin
                                     rob(i).is_spec <= '0';
                                 end if;
                             end loop;
-                            clear_spec_o <= '1';
+                            clear_spec_s <= '1';
                         end if;
                     end if;
                     
@@ -175,11 +180,15 @@ begin
                 if(misspredict_s = '1') then
                     misspredict_s <= '0';
                 end if;
+                if(clear_spec_s = '1') then
+                    clear_spec_s <= '0';
+                end if;
             end if;      
         end if;
     end process;
     
-    misspredict_o       <= misspredict_s;
+    misspredict_o   <= misspredict_s;
+    clear_spec_o    <= clear_spec_s;
                         
     rob_tail_idx_o <= std_logic_vector(to_unsigned(tail, 6));
     

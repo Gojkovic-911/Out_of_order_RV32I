@@ -13,15 +13,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="36.274000 us"></ZoomStartTime>
-      <ZoomEndTime time="63.654001 us"></ZoomEndTime>
-      <Cursor1Time time="46.500000 us"></Cursor1Time>
+      <ZoomStartTime time="33,774.000 ns"></ZoomStartTime>
+      <ZoomEndTime time="36,558.001 ns"></ZoomEndTime>
+      <Cursor1Time time="34,854.000 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="155"></NameColumnWidth>
-      <ValueColumnWidth column_width="305"></ValueColumnWidth>
+      <NameColumnWidth column_width="274"></NameColumnWidth>
+      <ValueColumnWidth column_width="163"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="57" />
+   <WVObjectSize size="61" />
    <wvobject type="logic" fp_name="/TOP_RISCV_tb/clk">
       <obj_property name="ElementShortName">clk</obj_property>
       <obj_property name="ObjectShortName">clk</obj_property>
@@ -63,7 +63,6 @@
    <wvobject type="group" fp_name="group170">
       <obj_property name="label">DECODE_STAGE</obj_property>
       <obj_property name="DisplayName">label</obj_property>
-      <obj_property name="isExpanded"></obj_property>
       <wvobject type="logic" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/decode_is_jump_s">
          <obj_property name="ElementShortName">decode_is_jump_s</obj_property>
          <obj_property name="ObjectShortName">decode_is_jump_s</obj_property>
@@ -97,7 +96,6 @@
    <wvobject type="group" fp_name="group158">
       <obj_property name="label">RENAME_STAGE</obj_property>
       <obj_property name="DisplayName">label</obj_property>
-      <obj_property name="isExpanded"></obj_property>
       <wvobject type="logic" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/rename_spec_instr_s">
          <obj_property name="ElementShortName">rename_spec_instr_s</obj_property>
          <obj_property name="ObjectShortName">rename_spec_instr_s</obj_property>
@@ -221,6 +219,7 @@
    <wvobject type="group" fp_name="group162">
       <obj_property name="label">DISPATCH_STAGE</obj_property>
       <obj_property name="DisplayName">label</obj_property>
+      <obj_property name="isExpanded"></obj_property>
       <wvobject type="group" fp_name="group200">
          <obj_property name="label">DISPATCH</obj_property>
          <obj_property name="DisplayName">label</obj_property>
@@ -300,6 +299,11 @@
          <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/issue_full_addr_s">
             <obj_property name="ElementShortName">issue_full_addr_s[3:0]</obj_property>
             <obj_property name="ObjectShortName">issue_full_addr_s[3:0]</obj_property>
+            <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+         </wvobject>
+         <wvobject type="other" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/issue_ptr_s">
+            <obj_property name="ElementShortName">issue_ptr_s</obj_property>
+            <obj_property name="ObjectShortName">issue_ptr_s</obj_property>
          </wvobject>
          <wvobject type="logic" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/issue_partial_valid_s">
             <obj_property name="ElementShortName">issue_partial_valid_s</obj_property>
@@ -310,80 +314,17 @@
             <obj_property name="ObjectShortName">issue_partial_addr_s[3:0]</obj_property>
             <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
          </wvobject>
+         <wvobject type="other" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/partial_ptr_s">
+            <obj_property name="ElementShortName">partial_ptr_s</obj_property>
+            <obj_property name="ObjectShortName">partial_ptr_s</obj_property>
+         </wvobject>
          <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/iq_ffs_s">
             <obj_property name="ElementShortName">iq_ffs_s[0:15]</obj_property>
             <obj_property name="ObjectShortName">iq_ffs_s[0:15]</obj_property>
-            <obj_property name="isExpanded"></obj_property>
-            <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/iq_ffs_s[0]">
-               <obj_property name="ElementShortName">[0]</obj_property>
-               <obj_property name="ObjectShortName">[0]</obj_property>
-            </wvobject>
-            <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/iq_ffs_s[1]">
-               <obj_property name="ElementShortName">[1]</obj_property>
-               <obj_property name="ObjectShortName">[1]</obj_property>
-            </wvobject>
-            <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/iq_ffs_s[2]">
-               <obj_property name="ElementShortName">[2]</obj_property>
-               <obj_property name="ObjectShortName">[2]</obj_property>
-            </wvobject>
-            <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/iq_ffs_s[3]">
-               <obj_property name="ElementShortName">[3]</obj_property>
-               <obj_property name="ObjectShortName">[3]</obj_property>
-            </wvobject>
-            <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/iq_ffs_s[4]">
-               <obj_property name="ElementShortName">[4]</obj_property>
-               <obj_property name="ObjectShortName">[4]</obj_property>
-            </wvobject>
-            <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/iq_ffs_s[5]">
-               <obj_property name="ElementShortName">[5]</obj_property>
-               <obj_property name="ObjectShortName">[5]</obj_property>
-            </wvobject>
-            <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/iq_ffs_s[6]">
-               <obj_property name="ElementShortName">[6]</obj_property>
-               <obj_property name="ObjectShortName">[6]</obj_property>
-            </wvobject>
-            <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/iq_ffs_s[7]">
-               <obj_property name="ElementShortName">[7]</obj_property>
-               <obj_property name="ObjectShortName">[7]</obj_property>
-               <obj_property name="isExpanded"></obj_property>
-            </wvobject>
-            <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/iq_ffs_s[8]">
-               <obj_property name="ElementShortName">[8]</obj_property>
-               <obj_property name="ObjectShortName">[8]</obj_property>
-            </wvobject>
-            <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/iq_ffs_s[9]">
-               <obj_property name="ElementShortName">[9]</obj_property>
-               <obj_property name="ObjectShortName">[9]</obj_property>
-            </wvobject>
-            <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/iq_ffs_s[10]">
-               <obj_property name="ElementShortName">[10]</obj_property>
-               <obj_property name="ObjectShortName">[10]</obj_property>
-            </wvobject>
-            <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/iq_ffs_s[11]">
-               <obj_property name="ElementShortName">[11]</obj_property>
-               <obj_property name="ObjectShortName">[11]</obj_property>
-            </wvobject>
-            <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/iq_ffs_s[12]">
-               <obj_property name="ElementShortName">[12]</obj_property>
-               <obj_property name="ObjectShortName">[12]</obj_property>
-            </wvobject>
-            <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/iq_ffs_s[13]">
-               <obj_property name="ElementShortName">[13]</obj_property>
-               <obj_property name="ObjectShortName">[13]</obj_property>
-            </wvobject>
-            <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/iq_ffs_s[14]">
-               <obj_property name="ElementShortName">[14]</obj_property>
-               <obj_property name="ObjectShortName">[14]</obj_property>
-            </wvobject>
-            <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/iq_ffs_s[15]">
-               <obj_property name="ElementShortName">[15]</obj_property>
-               <obj_property name="ObjectShortName">[15]</obj_property>
-            </wvobject>
          </wvobject>
          <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/iq_ram_s">
             <obj_property name="ElementShortName">iq_ram_s[0:15]</obj_property>
             <obj_property name="ObjectShortName">iq_ram_s[0:15]</obj_property>
-            <obj_property name="isExpanded"></obj_property>
             <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/iq_ram_s[0]">
                <obj_property name="ElementShortName">[0]</obj_property>
                <obj_property name="ObjectShortName">[0]</obj_property>
@@ -415,7 +356,6 @@
             <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/iq_ram_s[7]">
                <obj_property name="ElementShortName">[7]</obj_property>
                <obj_property name="ObjectShortName">[7]</obj_property>
-               <obj_property name="isExpanded"></obj_property>
             </wvobject>
             <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/iq_ram_s[8]">
                <obj_property name="ElementShortName">[8]</obj_property>
@@ -444,6 +384,7 @@
             <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/iq_ram_s[14]">
                <obj_property name="ElementShortName">[14]</obj_property>
                <obj_property name="ObjectShortName">[14]</obj_property>
+               <obj_property name="isExpanded"></obj_property>
             </wvobject>
             <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_issue_module/iq_ram_s[15]">
                <obj_property name="ElementShortName">[15]</obj_property>
@@ -532,6 +473,7 @@
    <wvobject type="group" fp_name="group163">
       <obj_property name="label">EXECUTE_STAGE</obj_property>
       <obj_property name="DisplayName">label</obj_property>
+      <obj_property name="isExpanded"></obj_property>
       <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/execute_inst/rs1_s">
          <obj_property name="ElementShortName">rs1_s[31:0]</obj_property>
          <obj_property name="ObjectShortName">rs1_s[31:0]</obj_property>
@@ -680,6 +622,14 @@
       <obj_property name="ElementShortName">rob_branch_addr_s[31:0]</obj_property>
       <obj_property name="ObjectShortName">rob_branch_addr_s[31:0]</obj_property>
    </wvobject>
+   <wvobject type="logic" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_rob/rename_instr_valid_i">
+      <obj_property name="ElementShortName">rename_instr_valid_i</obj_property>
+      <obj_property name="ObjectShortName">rename_instr_valid_i</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_rob/rename_instruction_i">
+      <obj_property name="ElementShortName">rename_instruction_i[31:0]</obj_property>
+      <obj_property name="ObjectShortName">rename_instruction_i[31:0]</obj_property>
+   </wvobject>
    <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_rob/rename_rd_arch_i">
       <obj_property name="ElementShortName">rename_rd_arch_i[4:0]</obj_property>
       <obj_property name="ObjectShortName">rename_rd_arch_i[4:0]</obj_property>
@@ -695,6 +645,10 @@
    <wvobject type="logic" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_rob/rename_rd_instr_i">
       <obj_property name="ElementShortName">rename_rd_instr_i</obj_property>
       <obj_property name="ObjectShortName">rename_rd_instr_i</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_rob/rename_spec_instr_i">
+      <obj_property name="ElementShortName">rename_spec_instr_i</obj_property>
+      <obj_property name="ObjectShortName">rename_spec_instr_i</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_rob/wb_valid_i">
       <obj_property name="ElementShortName">wb_valid_i</obj_property>
@@ -780,6 +734,10 @@
       <obj_property name="ElementShortName">rob_empty_o</obj_property>
       <obj_property name="ObjectShortName">rob_empty_o</obj_property>
    </wvobject>
+   <wvobject type="logic" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_rob/clear_spec_o">
+      <obj_property name="ElementShortName">clear_spec_o</obj_property>
+      <obj_property name="ObjectShortName">clear_spec_o</obj_property>
+   </wvobject>
    <wvobject type="other" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_rob/head">
       <obj_property name="ElementShortName">head</obj_property>
       <obj_property name="ObjectShortName">head</obj_property>
@@ -791,7 +749,6 @@
    <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_rob/rob">
       <obj_property name="ElementShortName">rob[0:63]</obj_property>
       <obj_property name="ObjectShortName">rob[0:63]</obj_property>
-      <obj_property name="isExpanded"></obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/u_free_list_fifo/clk">
       <obj_property name="ElementShortName">clk</obj_property>
@@ -837,17 +794,17 @@
       <obj_property name="ElementShortName">misspredict_o</obj_property>
       <obj_property name="ObjectShortName">misspredict_o</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/u_free_list_fifo/mem">
-      <obj_property name="ElementShortName">mem[0:63]</obj_property>
-      <obj_property name="ObjectShortName">mem[0:63]</obj_property>
-   </wvobject>
    <wvobject type="logic" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/u_free_list_fifo/snapshot_i">
       <obj_property name="ElementShortName">snapshot_i</obj_property>
       <obj_property name="ObjectShortName">snapshot_i</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/u_free_list_fifo/mem_snap">
-      <obj_property name="ElementShortName">mem_snap[0:63]</obj_property>
-      <obj_property name="ObjectShortName">mem_snap[0:63]</obj_property>
+   <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/u_free_list_fifo/mem">
+      <obj_property name="ElementShortName">mem[0:63]</obj_property>
+      <obj_property name="ObjectShortName">mem[0:63]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/u_free_list_fifo/mem_commit">
+      <obj_property name="ElementShortName">mem_commit[0:63]</obj_property>
+      <obj_property name="ObjectShortName">mem_commit[0:63]</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/TOP_RISCV_tb/TOP_RISCV_1/data_path_1/u_renaming_module/u_free_list_fifo/full_s">
       <obj_property name="ElementShortName">full_s</obj_property>

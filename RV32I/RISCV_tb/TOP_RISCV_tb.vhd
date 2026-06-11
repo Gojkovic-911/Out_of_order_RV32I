@@ -145,7 +145,7 @@ begin
       if rising_edge(clk) then
          if doutb_instr_s = std_logic_vector(to_unsigned(0, 32)) then
                cnt := cnt + 1;
-               if cnt > 50 then
+               if cnt > 200 then
                   -- report "doutb_instr_s has been 0 for 25 cycles – stopping simulation";
                   std.env.stop;   -- clean stop (VHDL-2008)
                end if;

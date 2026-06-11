@@ -110,9 +110,12 @@ architecture Behavioral of issue_module is
     signal dispatch_ptr_s : integer range 0 to IQ_DEPTH-1 := 0;
     signal issue_ptr_s    : integer range 0 to IQ_DEPTH-1 := 0;
     signal partial_ptr_s  : integer range 0 to IQ_DEPTH-1 := 0;
+    signal issue_valid_s  : std_logic;
     
     
 begin
+
+    -- issue_valid_o <= issue_valid_s;
     
     -- IQ RAM
     -- Synchronous read/write
@@ -190,7 +193,7 @@ begin
     begin
         if (rising_edge(clk)) then
             if (reset = '0') then
-                issue_valid_o <= '0';
+                issue_valid_s <= '0';
                 
                 for i in 0 to IQ_DEPTH-1 loop
                     iq_ffs_s(i).valid       <= '0';
@@ -202,6 +205,7 @@ begin
                     iq_ffs_s(i).rs2_addr    <= (others => '0');
                 end loop;
             else
+                        -- issue_valid_o <= '0';
                 -- Dispatch
                 -- Write into the Instruction Queue FFs
                 if (dispatch_ready_s = '1') then
@@ -411,7 +415,7 @@ begin
                 idx := -1;
                 found := '0';
     
-                for k in 0 to IQ_DEPTH-1 loop
+                for k in 1 to IQ_DEPTH-1 loop
                     i := (issue_ptr_s + k) mod IQ_DEPTH;
     
                     if (iq_ffs_s(i).valid = '1' and
@@ -428,7 +432,7 @@ begin
                     if found = '1' then
                         issue_full_valid_s <= '1';
                         issue_full_addr_s  <= std_logic_vector(to_unsigned(idx, IQ_BITS));
-                        issue_ptr_s        <= (idx + 1) mod IQ_DEPTH;
+                        issue_ptr_s        <= (idx) mod IQ_DEPTH;
                     else
                         issue_full_valid_s <= '0';
                     end if;
@@ -440,7 +444,7 @@ begin
                 idx := -1;
                 found := '0';
     
-                for k in 0 to IQ_DEPTH-1 loop
+                for k in 1 to IQ_DEPTH-1 loop
                     i := (partial_ptr_s + k) mod IQ_DEPTH;
     
                     if (iq_ffs_s(i).valid = '1' and
@@ -458,7 +462,7 @@ begin
                     if found = '1' then
                         issue_partial_valid_s <= '1';
                         issue_partial_addr_s  <= std_logic_vector(to_unsigned(idx, IQ_BITS));
-                        partial_ptr_s         <= (idx + 1) mod IQ_DEPTH;
+                        partial_ptr_s         <= (idx) mod IQ_DEPTH;
                     else
                         issue_partial_valid_s <= '0';
                     end if;

@@ -332,6 +332,8 @@ begin
             elsif stall_id_i = '0'then 
                 decode_is_jump_s        <= fetch_is_jump_i;
                 decode_instruction_s    <= fetch_instruction_s;
+                decode_spec_instr_s     <= spec_reg_s and (not clear_spec_s);
+                
                 if (decode_is_jump_s = '1') then -- BRANCH and JAL
                     decode_pc_reg_s <= std_logic_vector(unsigned(decode_pc_reg_s) + unsigned(decode_imm_s));
                 else
@@ -341,11 +343,6 @@ begin
                     decode_instr_valid_s <= '0';
                 else  
                     decode_instr_valid_s <= fetch_instr_valid_s;
-                end if;
-                if(clear_spec_s = '1') then
-                    decode_spec_instr_s  <=  '0';
-                else
-                    decode_spec_instr_s  <=  spec_reg_s;
                 end if;
             end if;
         end if;
@@ -384,11 +381,7 @@ begin
                 rename_pc_reg_s         <= decode_pc_reg_s;
                 rename_instruction      <= decode_instruction_s;
                 rename_instr_valid_s    <= decode_instr_valid_s;
-                if(clear_spec_s = '1') then
-                    rename_spec_instr_s     <=  '0';
-                else
-                    rename_spec_instr_s     <=  decode_spec_instr_s;
-                end if;
+                rename_spec_instr_s     <= decode_spec_instr_s and (not clear_spec_s);
             end if;
         end if;
     end process;
@@ -482,11 +475,7 @@ begin
                 dispatch_valid_s        <= rename_instr_valid_s and (not stall_rn_i);
                 dispatch_rob_idx_s      <= rob_rename_tail_idx_s;
                 dispatch_instruction    <= rename_instruction;
-                if(clear_spec_s = '1') then
-                    dispatch_spec_instr_s     <=  '0';
-                else
-                    dispatch_spec_instr_s     <=  rename_spec_instr_s;
-                end if;
+                dispatch_spec_instr_s   <=  rename_spec_instr_s and (not clear_spec_s);
             end if;
         end if;
     end process;
@@ -519,7 +508,7 @@ begin
             
             dispatch_rob_idx_i       => dispatch_rob_idx_s,
             dispatch_instruction     => dispatch_instruction,
-            spec_instr_i             => dispatch_spec_instr_s,
+            spec_instr_i             => dispatch_spec_instr_s and (not clear_spec_s),
             
             flush_pipe_i             => flush_pipe_i,
             
@@ -591,11 +580,7 @@ begin
                 execute_imm_s           <= issue_imm_s;     
                 execute_pc_reg_s        <= issue_pc_reg_s;     
                 execute_instruction     <= issue_instruction;
-                if(clear_spec_s = '1') then
-                    execute_spec_instr_s     <=  '0';
-                else
-                    execute_spec_instr_s     <=  issue_spec_instr_s;
-                end if;
+                execute_spec_instr_s    <= issue_spec_instr_s and (not clear_spec_s);
             end if;
         end if;
     end process;
@@ -642,7 +627,7 @@ begin
             
             execute_instr_type_i    => execute_instr_type_s,
             execute_instr_subtype_i => execute_instr_subtype_s,
-            execute_spec_instr_i    => execute_spec_instr_s,
+            execute_spec_instr_i    => execute_spec_instr_s and (not clear_spec_s),
             flush_pipe_i            => flush_pipe_i,
             
             execute_rs1_ready_i     => execute_rs1_ready_s,
@@ -695,7 +680,7 @@ begin
             rename_prev_phys_i      => rob_rename_prev_phys_s,
             rename_rd_instr_i       => rob_rename_rd_instr_s, 
             rob_tail_idx_o          => rob_rename_tail_idx_s,    
-            rename_spec_instr_i     => rename_spec_instr_s,
+            rename_spec_instr_i     => rename_spec_instr_s and (not clear_spec_s),
             rename_instruction_i    => rename_instruction,
             
             -- WB
