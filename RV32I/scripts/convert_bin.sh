@@ -4,7 +4,7 @@
 # EXTRACT BINARY VALUES FROM INSTRUCTION LIST
 # ======================================================
 
-input_file="RV32I/RISCV_tb/"$INPUT_FILE"/"$INPUT_FILE".dis"
+input_file="RV32I/RISCV_tb/"$TEST_NAME"/"$TEST_NAME".dis"
 OUTPUT_FILE="RV32I/RISCV_tb/assembly_code_bin.txt"
 
 # Check if input file exists

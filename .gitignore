@@ -13,7 +13,6 @@
 *.sim/
 RISCV_project
 .Xil/
-register_dump.txt
-comparison_result.txt
+*.txt
 cmp
-assembly_code_bin.txt
+*.hex

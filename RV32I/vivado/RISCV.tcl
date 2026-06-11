@@ -6,6 +6,9 @@ proc getScriptDirectory {} {
     return $scriptFolder
 }
 
+set testname [lindex $argv 0]
+set ::testname $testname
+
 #change working directory to script file directory
 cd [getScriptDirectory]
 #set project directory

@@ -1,6 +1,6 @@
 # reg_dump.tcl
 # Open file for writing
-set dump_file [open "../scripts/register_dump.txt" w]
+set dump_file [open "../RISCV_tb/$::testname/sim_vector_regs.txt" w]
 
 # ===========================================
 # PHYSICAL REGISTERS

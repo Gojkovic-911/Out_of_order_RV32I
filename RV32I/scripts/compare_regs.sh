@@ -4,53 +4,45 @@
 # REGISTER COMPARISON - fix for hex format in rename table
 # ======================================================
 
-RESULT_FILE="comparison_result.txt"
+RESULT_FILE="$TEST_DIR/comparison_result.txt"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-if [ ! -f "$GOLDEN_FILE" ]; then
-    echo -e "${RED}Golden file missing: $GOLDEN_FILE${NC}"
+if [ ! -f "$GOLDEN_REGS_FILE" ]; then
+    echo -e "${RED}Golden file missing: $GOLDEN_REGS_FILE${NC}"
     exit 1
 fi
-if [ ! -f "$SIM_DUMP_FILE" ]; then
-    echo -e "${RED}Dump file missing: $SIM_DUMP_FILE${NC}"
+if [ ! -f "$SIM_REGS_FILE" ]; then
+    echo -e "${RED}Dump file missing: $SIM_REGS_FILE${NC}"
     exit 1
 fi
-
-echo "=========================================="
-echo "COMPARING REGISTERS"
-echo "=========================================="
 
 # ======================================================
 # 1. Extract rename table (arch -> physical number in decimal)
 #    Physical number in dump is hexadecimal (e.g. reg_0c)
 # ======================================================
-grep -E "x[0-9]+[[:space:]]+->" "$SIM_DUMP_FILE" | sed -E 's/x([0-9]+).*reg_([0-9a-fA-F]+).*/\1 \2/' | while read arch phys_hex; do
+grep -E "x[0-9]+[[:space:]]+->" "$SIM_REGS_FILE" | sed -E 's/x([0-9]+).*reg_([0-9a-fA-F]+).*/\1 \2/' | while read arch phys_hex; do
     # Convert hex to decimal (e.g. 0c -> 12, 0f -> 15, 13 -> 19)
     phys_dec=$((16#$phys_hex))
     echo "$arch $phys_dec"
 done > /tmp/rename_map.txt
 
-echo "Rename mapping (first 10):"
-head -10 /tmp/rename_map.txt
 
 # ======================================================
 # 2. Extract physical register values (indices are decimal)
 # ======================================================
-grep -E "reg_[0-9]+ =" "$SIM_DUMP_FILE" | sed -E 's/reg_([0-9]+)[[:space:]]*=[[:space:]]*([0-9a-fA-F]+).*/\1 \2/' | while read phys_num val; do
+grep -E "reg_[0-9]+ =" "$SIM_REGS_FILE" | sed -E 's/reg_([0-9]+)[[:space:]]*=[[:space:]]*([0-9a-fA-F]+).*/\1 \2/' | while read phys_num val; do
     echo "$phys_num $(echo $val | tr '[:lower:]' '[:upper:]')"
 done > /tmp/phys_vals.txt
 
-echo -e "\nPhysical values (first 10):"
-head -10 /tmp/phys_vals.txt
 
 # ======================================================
 # 3. Extract expected values from golden model
 # ======================================================
-grep "## expect\[" "$GOLDEN_FILE" | sed -E 's/.*expect\[([0-9]+)\] = 0x([0-9a-fA-F]+).*/\1 \2/' | while read reg val; do
+grep "## expect\[" "$GOLDEN_REGS_FILE" | sed -E 's/.*expect\[([0-9]+)\] = 0x([0-9a-fA-F]+).*/\1 \2/' | while read reg val; do
     echo "$reg $(echo $val | tr '[:lower:]' '[:upper:]')"
 done > /tmp/golden_vals.txt
 

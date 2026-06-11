@@ -1,13 +1,13 @@
 # Out_of_order_RV32I
-Building an OOO RISC-V Core starting from single-cycle implementation
 
-# Run
-./master_script.sh <*test*> 
+Out‑of‑order RISC‑V (RV32I) core written in VHDL, evolving from a single‑cycle implementation.
 
-tests:
+## Requirements
+gcc-riscv64-unknown-elf
 
-single_missp_test
 
-single_jalr_test
 
-single_corrp_test
+## Quick Run
+
+```bash
+./master_script.sh single_missp_test   # runs assembly, simulation, and register verification
