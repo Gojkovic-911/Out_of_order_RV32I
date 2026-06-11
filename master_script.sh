@@ -11,7 +11,7 @@ export INPUT_FILE
 BIN_CONVERSION_SCRIPT="RV32I/scripts/convert_bin.sh"
 VIVADO=$(locate bin/vivado | grep '/bin/vivado$')
 
-export GOLDEN_FILE="RV32I/scripts/golden_vector_regs.txt"
+export GOLDEN_FILE="RV32I/RISCV_tb/$INPUT_FILE/golden_vector_regs.txt"
 export SIM_DUMP_FILE="RV32I/scripts/register_dump.txt"
 COMPARE_SCRIPT="RV32I/scripts/compare_regs.sh"
 

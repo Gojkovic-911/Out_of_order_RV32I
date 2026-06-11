@@ -265,7 +265,7 @@ begin
                 fetch_instr_valid_s <= '0';
             elsif stall_if_i = '1' then -- stall
                 pc_reg_s <= pc_reg_s;
-                fetch_instr_valid_s <= '0';
+                fetch_instr_valid_s <= '1';
             elsif flush_pipe_i = '1' then      
                 pc_reg_s   <= pc_next_s;
                 fetch_instr_valid_s <= '1';
@@ -299,15 +299,15 @@ begin
     -- Register for marking instructions speculative - JALR & BRANCH
     spec_reg : process (clk) is
     begin
-       if (rising_edge(clk)) then
-            if (reset = '0')then
+       if rising_edge(clk) then
+            if reset = '0' then
                 spec_reg_s  <= '0';
                 spec_lock   <= '0';
             else
                 if((flush_pipe_i = '1' or clear_spec_s = '1') and spec_lock = '1') then
                     spec_reg_s  <= '0';
                     spec_lock   <= '0';
-                elsif(fetch_is_spec_i = '1' and spec_lock = '0') then
+                elsif(fetch_is_spec_i = '1' and spec_lock = '0') and stall_if_i = '0' then
                     spec_reg_s  <= '1';
                     spec_lock   <= '1';
                 end if;
@@ -329,24 +329,23 @@ begin
                 decode_spec_instr_s     <= '0';
                 decode_instr_valid_s    <= '0';
                 
-                
             elsif stall_id_i = '0'then 
                 decode_is_jump_s        <= fetch_is_jump_i;
                 decode_instruction_s    <= fetch_instruction_s;
                 if (decode_is_jump_s = '1') then -- BRANCH and JAL
                     decode_pc_reg_s <= std_logic_vector(unsigned(decode_pc_reg_s) + unsigned(decode_imm_s));
                 else
-                    decode_pc_reg_s <= pc_reg_s;
+                    decode_pc_reg_s     <= pc_reg_s;
                 end if;
                 if fetch_instruction_s = std_logic_vector(to_unsigned(0, DATA_WIDTH)) then
                     decode_instr_valid_s <= '0';
                 else  
-                    decode_instr_valid_s    <= fetch_instr_valid_s;
+                    decode_instr_valid_s <= fetch_instr_valid_s;
                 end if;
                 if(clear_spec_s = '1') then
-                    decode_spec_instr_s     <=  '0';
+                    decode_spec_instr_s  <=  '0';
                 else
-                    decode_spec_instr_s     <=  spec_reg_s;
+                    decode_spec_instr_s  <=  spec_reg_s;
                 end if;
             end if;
         end if;
@@ -366,7 +365,7 @@ begin
     --ID/RN register
     ID_RN : process (clk) is
     begin
-        if (rising_edge(clk)) then
+        if rising_edge(clk) then
             if reset = '0' or flush_pipe_i = '1' then
                 rename_rs1_arch_addr_s  <= (others => '0');
                 rename_rs2_arch_addr_s  <= (others => '0');
@@ -384,7 +383,7 @@ begin
                 rename_imm_s            <= decode_imm_s;
                 rename_pc_reg_s         <= decode_pc_reg_s;
                 rename_instruction      <= decode_instruction_s;
-                rename_instr_valid_s    <= decode_instr_valid_s and (not stall_id_i);
+                rename_instr_valid_s    <= decode_instr_valid_s;
                 if(clear_spec_s = '1') then
                     rename_spec_instr_s     <=  '0';
                 else
@@ -528,6 +527,7 @@ begin
             cdb_valid_i              => cdb_valid_s,
     
             stall_iq_is_i            => stall_iq_is_i,
+            stall_is_i               => stall_is_i,
             clear_spec_i             => clear_spec_s,
             
             issue_valid_o            => issue_valid_s,
@@ -551,7 +551,6 @@ begin
         
             iq_full_o                => iq_full_o           
         );
-
 
     --********************************************************
     

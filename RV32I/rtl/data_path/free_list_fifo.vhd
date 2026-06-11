@@ -44,10 +44,11 @@ architecture Behavioral of free_list_fifo is
     end function;
     
     signal mem              : mem_type := init_mem;  -- Initialize directly with all physical registers
-    signal mem_snap         : mem_type := init_mem;  -- Initialize directly with all physical registers
+    signal mem_commit         : mem_type := init_mem;  -- Initialize directly with all physical registers
     signal wr_ptr, rd_ptr   : integer range 0 to DEPTH-1 := 0;
     signal full_s, empty_s  : std_logic;
     signal push_valid       : std_logic;
+    signal rd_ptr_commit    : integer range 0 to DEPTH-1 := 0;
     
 begin
     
@@ -74,6 +75,18 @@ begin
                     end if;    
                 end if;
                 
+                -- Push operation for the commit version of the fifo
+                if push = '1' and full_s = '0' and push_valid = '1' and mem(wr_ptr).valid = '0' then
+                    mem_commit(wr_ptr).value <= push_data;
+                    mem_commit(wr_ptr).valid <= '1';
+                    
+                    if(wr_ptr = DEPTH-1) then
+                        wr_ptr  <= 1;
+                    else
+                        wr_ptr <= wr_ptr + 1;
+                    end if;    
+                end if;
+                
                 -- Pop operation (take free register for rename)
                 if pop = '1' and empty_s = '0' and mem(rd_ptr).valid = '1' then
                     mem(rd_ptr).valid <= '0';
@@ -87,11 +100,17 @@ begin
                 end if;
                 
                 if snapshot_i = '1' then
-                    mem_snap <= mem;
+                    mem_commit <= mem;
+                    if push = '1' and full_s = '0' and push_valid = '1' and mem(wr_ptr).valid = '0' then
+                        rd_ptr_commit   <= rd_ptr + 1;
+                    else
+                        rd_ptr_commit   <= rd_ptr;
+                    end if;
                 end if;
                 
                 if flush_i = '1' then
-                    mem <= mem_snap;
+                    mem <= mem_commit;
+                    rd_ptr   <= rd_ptr_commit;
                 end if;
             end if;
         end if;

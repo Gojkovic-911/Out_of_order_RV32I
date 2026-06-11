@@ -86,6 +86,7 @@ architecture behavioral of control_path is
     signal stall_rn_s            : std_logic;
     signal stall_is_s            : std_logic;
     signal stall_ex_s            : std_logic;
+    signal stall_id_s           : std_logic;
     
     signal alu_op_s              : std_logic_vector(4 downto 0);
     signal mem_subtype_s         : std_logic_vector(4 downto 0);
@@ -109,7 +110,7 @@ begin
         if rising_edge(clk) then
             if reset = '0'  or misspredict_i = '1' then 
                 decode_instr_s    <= (others => '0');
-            else 
+            elsif stall_id_s = '0' then
                 decode_instr_s    <=  instruction_i;
             end if;
         end if;
@@ -132,7 +133,7 @@ begin
             funct7_o        => decode_funct7_s
         );
     
-    if_id_flush_o <= '1' when decode_instr_type_s = BRANCH or decode_instr_type_s = JAL else '0';
+    -- if_id_flush_o <= '1' when decode_instr_type_s = BRANCH or decode_instr_type_s = JAL else '0';
     
     -- RN stage
     -- ID/RN register
@@ -220,7 +221,7 @@ begin
     stall:process (rob_full_i, free_list_fifo_empty_i, rename_rd_we_s, iq_full_i, rs_full_i) is
     begin
         stall_if_o      <= '0';
-        stall_id_o      <= '0';
+        stall_id_s      <= '0';
         stall_rn_s      <= '0';
         stall_is_s      <= '0';
         stall_ex_s      <= '0';
@@ -229,14 +230,14 @@ begin
         -- ROB is full OR (free_list_fifo is empty AND there's an rd instruction in rename stage)
         if(rob_full_i = '1' or (free_list_fifo_empty_i = '1' and rename_rd_we_s = '1')) then
             stall_if_o <= '1';
-            stall_id_o <= '1';
+            stall_id_s <= '1';
             stall_rn_s <= '1';
         end if;
         
         -- IQ is full
         if(iq_full_i = '1') then
             stall_if_o <= '1';
-            stall_id_o <= '1';
+            stall_id_s <= '1';
             stall_rn_s <= '1';
             stall_is_s <= '1';
         end if;          
@@ -254,6 +255,7 @@ begin
     stall_rn_o  <= stall_rn_s;
     stall_is_o  <= stall_is_s;
     stall_ex_o  <= stall_ex_s;
+    stall_id_o  <= stall_id_s;
     
     flush_pc_next: process (misspredict_i) begin
         if misspredict_i = '1' then

@@ -10,7 +10,8 @@ use std.env.all;                     -- for std.env.stop
 
 entity TOP_RISCV_tb is
 generic (
-        Vivado_version    : std_logic := '0'
+        Vivado_version    : std_logic := '0';
+        WADDR             : natural   := 11
     );
 -- port ();
 end entity;
@@ -24,14 +25,14 @@ architecture Behavioral of TOP_RISCV_tb is
    -- Instruction memory signals
    signal ena_instr_s, enb_instr_s     : std_logic;
    signal wea_instr_s, web_instr_s     : std_logic_vector(3 downto 0);
-   signal addra_instr_s, addrb_instr_s : std_logic_vector(9 downto 0);
+   signal addra_instr_s, addrb_instr_s : std_logic_vector(WADDR-1 downto 0);
    signal dina_instr_s, dinb_instr_s   : std_logic_vector(31 downto 0);
    signal douta_instr_s, doutb_instr_s : std_logic_vector(31 downto 0);
    signal addrb_instr_32_s             : std_logic_vector(31 downto 0);
    -- Data memory signals
    signal ena_data_s, enb_data_s       : std_logic;
    signal wea_data_s, web_data_s       : std_logic_vector(3 downto 0);
-   signal addra_data_s, addrb_data_s   : std_logic_vector(9 downto 0);
+   signal addra_data_s, addrb_data_s   : std_logic_vector(WADDR-1 downto 0);
    signal dina_data_s, dinb_data_s     : std_logic_vector(31 downto 0);
    signal douta_data_s, doutb_data_s   : std_logic_vector(31 downto 0);
    signal addra_data_32_s              : std_logic_vector(31 downto 0);
@@ -44,12 +45,12 @@ begin
    -- Constants:
    ena_instr_s   <= '1';
    enb_instr_s   <= '1';
-   addrb_instr_s <= addrb_instr_32_s(9 downto 0);
+   addrb_instr_s <= addrb_instr_32_s(WADDR-1 downto 0);
    web_instr_s   <= (others => '0');
    dinb_instr_s  <= (others => '0');
    -- Instance:
    instruction_mem : entity work.BRAM(behavioral)
-      generic map(WADDR => 10)
+      generic map(WADDR => WADDR)
       port map (clk      => clk,
                 -- port A
                 en_a_i   => ena_instr_s,
@@ -69,14 +70,14 @@ begin
    -- Port A: used by the processor to read/write data
    -- Port B: unused
    -- Constants:
-   addra_data_s <= addra_data_32_s(9 downto 0);
+   addra_data_s <= addra_data_32_s(WADDR-1 downto 0);
    addrb_data_s <= (others => '0');
    dinb_data_s  <= (others => '0');
    ena_data_s   <= '1';
    enb_data_s   <= '1';
    -- Instance:
    data_mem : entity work.BRAM(behavioral)
-      generic map(WADDR => 10)
+      generic map(WADDR => WADDR)
       port map (clk      => clk,
                 -- port A
                 en_a_i   => ena_data_s,
@@ -118,7 +119,7 @@ begin
       while (not endfile(RISCV_instructions)) loop
          readline(RISCV_instructions, row);
          if (row'length > 0) then
-            addra_instr_s <= std_logic_vector(to_unsigned(i, 10));
+            addra_instr_s <= std_logic_vector(to_unsigned(i, WADDR));
             dina_instr_s  <= to_std_logic_vector(string(row));
          end if;
          i             := i + 4;
@@ -132,8 +133,8 @@ begin
    -- Clock generator
    clk_proc : process
    begin
-      clk <= '1', '0' after 100 ns;
-      wait for 200 ns;
+      clk <= '1', '0' after 50 ns;
+      wait for 100 ns;
    end process;
 
    -- Process that monitors doutb_instr_s
@@ -144,7 +145,7 @@ begin
       if rising_edge(clk) then
          if doutb_instr_s = std_logic_vector(to_unsigned(0, 32)) then
                cnt := cnt + 1;
-               if cnt > 25 then
+               if cnt > 50 then
                   -- report "doutb_instr_s has been 0 for 25 cycles – stopping simulation";
                   std.env.stop;   -- clean stop (VHDL-2008)
                end if;

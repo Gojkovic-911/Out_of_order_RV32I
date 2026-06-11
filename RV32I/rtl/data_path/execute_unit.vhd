@@ -238,29 +238,18 @@ begin
     -- FFs WRITE
     RS_ffs:process(clk)
     begin
-        if (rising_edge(clk)) then
-            if (reset = '0') then
+        if rising_edge(clk) then
+            if reset = '0' then
                 rs_alu_ffs_arr_s     <=  (others => (valid => '0', rs1_ready => '0', rs2_ready => '0', is_spec => '0', others => (others => '0')));
                 rs_lsu_ffs_arr_s     <=  (others => (valid => '0', rs1_ready => '0', rs2_ready => '0', is_load => '0',  is_spec => '0', others => (others => '0')));
                 rs_branch_ffs_arr_s  <=  (others => (valid => '0', rs1_ready => '0', rs2_ready => '0',  is_spec => '0', others => (others => '0')));
-
-                branch_rs_full_s    <= '0';
-                alu_rs_full_s       <= '0';
-                lsu_rs_full_s       <= '0';
-                
             else
                 -- Default values before the instruction is decoded
-                alu_rs_full_s    <= '0';
-                lsu_rs_full_s    <= '0';
-                branch_rs_full_s <= '0';
-                
                 -- FFs WRITE 
                 -- Reservation stations FFs
                 case execute_instr_type_i is
                     when R_TYPE | I_TYPE | LUI | AUIPC | JAL =>  -- ALU
-                        alu_rs_full_s <= '1';
                         if(alu_rs_entry_ready_s = '1') then
-                            alu_rs_full_s <= '0';
                             if(execute_valid_i = '1') then        
                                 rs_alu_ffs_arr_s(to_integer(unsigned(alu_rs_entry_addr_s))).valid           <= '1';
                                 rs_alu_ffs_arr_s(to_integer(unsigned(alu_rs_entry_addr_s))).rs1_addr        <= execute_rs1_addr_i;
@@ -292,9 +281,7 @@ begin
                         end if;
                                             
                     when LOAD | STORE =>  -- LSU
-                        lsu_rs_full_s <= '1';
                         if(lsu_rs_entry_ready_s = '1') then
-                            lsu_rs_full_s <= '0';
                             if(execute_valid_i = '1') then
                                 -- if cdb 
                                 rs_lsu_ffs_arr_s(to_integer(unsigned(lsu_rs_entry_addr_s))).valid         <= '1';
@@ -320,9 +307,7 @@ begin
                         end if;
                     
                     when BRANCH =>  -- BRANCH
-                        branch_rs_full_s <= '1';
                         if(branch_rs_entry_ready_s = '1') then
-                            branch_rs_full_s <= '0';
                             if(execute_valid_i = '1') then
                                 rs_branch_ffs_arr_s(to_integer(unsigned(branch_rs_entry_addr_s))).valid         <= '1';
                                 rs_branch_ffs_arr_s(to_integer(unsigned(branch_rs_entry_addr_s))).rs1_data      <= execute_rs1_data_i;
@@ -708,6 +693,10 @@ begin
         
         branch_rs_entry_ready_s <= '0';
         branch_rs_entry_addr_s  <= (others => '0');
+        
+        alu_rs_full_s    <= '0';
+        lsu_rs_full_s    <= '0';
+        branch_rs_full_s <= '0';
     
     -- 1) free slot for entry 
         case execute_instr_type_i is
@@ -722,9 +711,11 @@ begin
                 end loop;
                 
                 if (found = '1') then
+                    alu_rs_full_s        <= '0';
                     alu_rs_entry_ready_s <= '1';
                     alu_rs_entry_addr_s  <= std_logic_vector(to_unsigned(idx, RS_BITS));
                 else
+                    alu_rs_full_s        <= '1';
                     alu_rs_entry_ready_s <= '0';
                     alu_rs_entry_addr_s  <= (others => '0');
                 end if;        
@@ -740,9 +731,11 @@ begin
                 end loop;
                 
                 if (found = '1') then
+                    lsu_rs_full_s    <= '0';
                     lsu_rs_entry_ready_s <= '1';
                     lsu_rs_entry_addr_s  <= std_logic_vector(to_unsigned(idx, RS_BITS));
                 else
+                    lsu_rs_full_s    <= '1';
                     lsu_rs_entry_ready_s <= '0';
                     lsu_rs_entry_addr_s  <= (others => '0');
                 end if;
@@ -757,14 +750,15 @@ begin
                     end if;
                 end loop;
                 
-                if (found = '1') then
+                if found = '1' then
+                    branch_rs_full_s        <= '0';
                     branch_rs_entry_ready_s <= '1';
                     branch_rs_entry_addr_s  <= std_logic_vector(to_unsigned(idx, RS_BITS));
                 else
+                    branch_rs_full_s        <= '1';
                     branch_rs_entry_ready_s <= '0';
-                    branch_rs_entry_addr_s <= (others => '0');
+                    branch_rs_entry_addr_s  <= (others => '0');
                 end if;
-                
             when others =>
         end case;
         
