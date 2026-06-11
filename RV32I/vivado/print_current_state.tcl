@@ -1,6 +1,9 @@
 # reg_dump.tcl
 # Open file for writing
-set dump_file [open "../RISCV_tb/$::testname/sim_vector_regs.txt" w]
+
+set testname [lindex $argv 0]
+
+set dump_file [open "../RISCV_tb/$::test/sim_vector_regs.txt" w]
 
 # ===========================================
 # PHYSICAL REGISTERS
@@ -32,5 +35,4 @@ puts $dump_file "========================================="
 close $dump_file
 
 # Console confirmation
-puts "Dump completed! Data is in file: register_dump.txt"
-puts "Location: [pwd]/register_dump.txt"
+puts "Dump completed!"

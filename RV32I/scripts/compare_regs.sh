@@ -4,7 +4,12 @@
 # REGISTER COMPARISON - fix for hex format in rename table
 # ======================================================
 
-RESULT_FILE="$TEST_DIR/comparison_result.txt"
+TEST_NAME=$1
+
+GOLDEN_REGS_FILE="../RISCV_tb/$TEST_NAME/golden_vector_regs.txt"
+SIM_REGS_FILE="../RISCV_tb/$TEST_NAME/sim_vector_regs.txt"
+
+RESULT_FILE="../RISCV_tb/$TEST_NAME/comparison_results.txt"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -100,6 +105,12 @@ fi
 
 # Save complete results to file
 {
+    if [ $FAIL -eq 0 ]; then
+        echo "VERDICT: PASS"
+    else
+        echo "VERDICT: FAIL"
+        echo "Failed registers:$FAILED_REGS"
+    fi
     echo "=========================================="
     echo "REGISTER COMPARISON RESULTS"
     echo "Time: $(date)"
@@ -122,12 +133,6 @@ fi
     done
     echo "------------------------------------------------"
     echo "PASS: $PASS, FAIL: $FAIL, TOTAL: 32"
-    if [ $FAIL -eq 0 ]; then
-        echo "VERDICT: PASS"
-    else
-        echo "VERDICT: FAIL"
-        echo "Failed registers:$FAILED_REGS"
-    fi
 } > "$RESULT_FILE"
 
 # Clean temporary files

@@ -43,4 +43,4 @@ def run_interpreter(asm_file: str, out_regs: str):
 
 if __name__ == "__main__":
     testname = sys.argv[1]
-    run_interpreter( f"RV32I/RISCV_tb/{testname}/{testname}.s", f"RV32I/RISCV_tb/{testname}/golden_vector_regs.txt")
+    run_interpreter( f"../RISCV_tb/{testname}/{testname}.s", f"../RISCV_tb/{testname}/golden_vector_regs.txt")

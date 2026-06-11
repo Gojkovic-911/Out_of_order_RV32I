@@ -1,27 +1,47 @@
-# Makefile for running all tests under RV32I/RISCV_tb/*test
+# Makefile for running tests under RV32I/RISCV_tb/*test
 
 SHELL = /bin/bash
-TEST_DIR = RV32I/RISCV_tb
-MASTER_SCRIPT = ./master_script.sh
+VIVADO_SCRIPT = RV32I/vivado/RISCV.tcl
 
-# Find all directories ending with "test"
-TEST_NAMES = $(shell find $(TEST_DIR) -maxdepth 1 -type d -name '*test' -exec basename {} \;)
+# Pronađi Vivado instalaciju
+VIVADO = $(shell locate bin/vivado | grep '/bin/vivado$$' | head -1)
 
-.PHONY: all $(TEST_NAMES)
+# Provjeri da li je Vivado pronađen
+ifeq ($(strip $(VIVADO)),)
+    VIVADO = ~/Public/Vivado/2023.2/bin/vivado
+endif
 
-all: $(TEST_NAMES)
+.PHONY: all clean results
 
-# Run each test
-$(TEST_NAMES):
-	@echo "Running test: $@"
-	$(MASTER_SCRIPT) $@
+# Default target: run regression (no argument passed)
+all: regression
 
-# Optional: run a specific test by name (e.g., make single_missp_test)
+# Run regression (when no test name is given)
+regression:
+	@echo "========================================="
+	@echo "Running REGRESSION on all tests"
+	@echo "========================================="
+	export TEST_NAME=regression; \
+	$(VIVADO) -mode batch -source $(VIVADO_SCRIPT) -tclargs "$$TEST_NAME" -nojournal -nolog
+	@./RV32I/scripts/verdict.sh
+
+# Run a specific test (when a test name is given as argument)
+# e.g., make single_missp_test
 %:
-	@echo "Running test: $@"
-	$(MASTER_SCRIPT) $@
+	@echo "========================================="
+	@echo "Running single test: $@"
+	@echo "========================================="
+	export TEST_NAME=$@; \
+	$(VIVADO) -mode batch -source $(VIVADO_SCRIPT) -tclargs "$$TEST_NAME" -nojournal -nolog
+	@./RV32I/scripts/verdict.sh $@
 
-# Clean any generated files (if needed)
+results:
+	@./RV32I/scripts/verdict.sh
+
+# Clean generated files
 clean:
 	find . -name "*.txt" -type f | xargs rm -f
-	rm -rf RV32I/vivado/RISCV_project *.log *.jou .Xil RV32I/vivado/.Xil
+	find . -name "*.log" -type f | xargs rm -f
+	find . -name "*.jou" -type f | xargs rm -f
+	rm -rf RV32I/vivado/RISCV_project .Xil RV32I/vivado/.Xil
+	@echo "Clean finished"
