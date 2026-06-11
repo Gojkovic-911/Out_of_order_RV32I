@@ -47,3 +47,5 @@ $COMPARE_SCRIPT
 COMPARE_EXIT=$?
 
 exit $COMPARE_EXIT
+
+rm -rf .Xil *jou *log

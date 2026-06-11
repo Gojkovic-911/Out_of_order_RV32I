@@ -2,9 +2,12 @@
 Building an OOO RISC-V Core starting from single-cycle implementation
 
 # Run
-./master_script.sh <test> 
+./master_script.sh <*test*> 
 
 tests:
+
 single_missp_test
+
 single_jalr_test
+
 single_corrp_test

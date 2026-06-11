@@ -95,28 +95,17 @@ architecture Behavioral of issue_module is
     signal dispatch_ready_s         : std_logic;
     signal dispatch_addr_s          : std_logic_vector(IQ_BITS-1  downto 0);
     
-    signal issue_full_valid_s       : std_logic;
-    signal issue_full_addr_s        : std_logic_vector(IQ_BITS-1  downto 0);
+    signal issue_valid_s       : std_logic;
+    signal issue_addr_s        : std_logic_vector(IQ_BITS-1  downto 0);
     
-    signal issue_partial_valid_s    : std_logic;
-    signal issue_partial_addr_s     : std_logic_vector(IQ_BITS-1  downto 0);
-    
-    signal issue_partial_addr_reg_s : std_logic_vector(IQ_BITS-1  downto 0);
-    signal issue_full_addr_reg_s    : std_logic_vector(IQ_BITS-1  downto 0);
-    
-    signal issue_partial_valid_reg_s: std_logic;
-    signal issue_full_valid_reg_s   : std_logic;
+    signal issue_addr_reg_s    : std_logic_vector(IQ_BITS-1  downto 0);
+    signal issue_valid_reg_s   : std_logic;
     
     signal dispatch_ptr_s : integer range 0 to IQ_DEPTH-1 := 0;
     signal issue_ptr_s    : integer range 0 to IQ_DEPTH-1 := 0;
-    signal partial_ptr_s  : integer range 0 to IQ_DEPTH-1 := 0;
-    signal issue_valid_s  : std_logic;
-    
     
 begin
 
-    -- issue_valid_o <= issue_valid_s;
-    
     -- IQ RAM
     -- Synchronous read/write
     process(clk)
@@ -163,23 +152,14 @@ begin
                 -- Issue
                 -- Read from the Instruction Queue RAM
                 if (stall_iq_is_i = '0') then
-                    if (issue_full_valid_s = '1') then
-                        issue_rd_addr_o         <= iq_ram_s(to_integer(unsigned(issue_full_addr_s))).rd_addr;
-                        issue_instr_type_o      <= iq_ram_s(to_integer(unsigned(issue_full_addr_s))).instr_type;
-                        issue_instr_subtype_o   <= iq_ram_s(to_integer(unsigned(issue_full_addr_s))).instr_subtype;
-                        issue_imm_o             <= iq_ram_s(to_integer(unsigned(issue_full_addr_s))).imm;
-                        issue_pc_reg_o          <= iq_ram_s(to_integer(unsigned(issue_full_addr_s))).pc_value;
-                        issue_rob_idx_o         <= iq_ram_s(to_integer(unsigned(issue_full_addr_s))).rob_idx;
-                        issue_instruction       <= iq_ram_s(to_integer(unsigned(issue_full_addr_s))).instruction;
-                        
-                    elsif (issue_partial_valid_s = '1') then      
-                        issue_rd_addr_o         <= iq_ram_s(to_integer(unsigned(issue_partial_addr_s))).rd_addr;
-                        issue_instr_type_o      <= iq_ram_s(to_integer(unsigned(issue_partial_addr_s))).instr_type;
-                        issue_instr_subtype_o   <= iq_ram_s(to_integer(unsigned(issue_partial_addr_s))).instr_subtype;
-                        issue_imm_o             <= iq_ram_s(to_integer(unsigned(issue_partial_addr_s))).imm;
-                        issue_pc_reg_o          <= iq_ram_s(to_integer(unsigned(issue_partial_addr_s))).pc_value;
-                        issue_rob_idx_o         <= iq_ram_s(to_integer(unsigned(issue_partial_addr_s))).rob_idx;
-                        issue_instruction       <= iq_ram_s(to_integer(unsigned(issue_partial_addr_s))).instruction;
+                    if (issue_valid_s = '1') then
+                        issue_rd_addr_o         <= iq_ram_s(to_integer(unsigned(issue_addr_s))).rd_addr;
+                        issue_instr_type_o      <= iq_ram_s(to_integer(unsigned(issue_addr_s))).instr_type;
+                        issue_instr_subtype_o   <= iq_ram_s(to_integer(unsigned(issue_addr_s))).instr_subtype;
+                        issue_imm_o             <= iq_ram_s(to_integer(unsigned(issue_addr_s))).imm;
+                        issue_pc_reg_o          <= iq_ram_s(to_integer(unsigned(issue_addr_s))).pc_value;
+                        issue_rob_idx_o         <= iq_ram_s(to_integer(unsigned(issue_addr_s))).rob_idx;
+                        issue_instruction       <= iq_ram_s(to_integer(unsigned(issue_addr_s))).instruction;
                     end if;
                 end if;
                 
@@ -193,7 +173,7 @@ begin
     begin
         if (rising_edge(clk)) then
             if (reset = '0') then
-                issue_valid_s <= '0';
+                issue_valid_o <= '0';
                 
                 for i in 0 to IQ_DEPTH-1 loop
                     iq_ffs_s(i).valid       <= '0';
@@ -205,7 +185,6 @@ begin
                     iq_ffs_s(i).rs2_addr    <= (others => '0');
                 end loop;
             else
-                        -- issue_valid_o <= '0';
                 -- Dispatch
                 -- Write into the Instruction Queue FFs
                 if (dispatch_ready_s = '1') then
@@ -241,12 +220,9 @@ begin
                 -- Issue
                 -- Reset the valid bits for the instruction that is issued
                 if (stall_iq_is_i = '0') then
-                    if (issue_full_valid_s = '1') then
+                    if (issue_valid_s = '1') then
                         issue_valid_o <= '1';
-                        iq_ffs_s(to_integer(unsigned(issue_full_addr_s))).valid    <= '0';
-                    elsif (issue_partial_valid_s = '1') then    
-                        issue_valid_o <= '1';
-                        iq_ffs_s(to_integer(unsigned(issue_partial_addr_s))).valid <= '0';
+                        iq_ffs_s(to_integer(unsigned(issue_addr_s))).valid    <= '0';
                     else
                         issue_valid_o <= '0';
                     end if;  
@@ -292,21 +268,17 @@ begin
     begin
         if (rising_edge(clk)) then
             if (reset = '0') then
-                issue_full_valid_reg_s      <= '0';
-                issue_full_addr_reg_s       <= (others => '0');
-                issue_partial_valid_reg_s   <= '0';
-                issue_partial_addr_reg_s    <= (others => '0');
+                issue_valid_reg_s      <= '0';
+                issue_addr_reg_s       <= (others => '0');
             elsif (stall_iq_is_i = '0') then
-                issue_full_valid_reg_s      <= issue_full_valid_s;
-                issue_full_addr_reg_s       <= issue_full_addr_s;
-                issue_partial_valid_reg_s   <= issue_partial_valid_s;
-                issue_partial_addr_reg_s    <= issue_partial_addr_s;
+                issue_valid_reg_s      <= issue_valid_s;
+                issue_addr_reg_s       <= issue_addr_s;
             end if;
         end if;
     end process;
     
     -- Asynchronous read from IQ ffs
-    process(iq_ffs_s, issue_full_valid_reg_s, issue_partial_valid_reg_s, issue_full_addr_reg_s, cdb_valid_i, issue_partial_addr_reg_s, cdb_addr_i)
+    process(iq_ffs_s, issue_valid_reg_s, issue_addr_reg_s, cdb_valid_i, cdb_addr_i)
     begin
             -- Default values
             issue_rs1_addr_o        <= (others => '0');
@@ -316,42 +288,23 @@ begin
             spec_instr_o            <= '0';
             
         -- Issue/Read from the Instruction Queue
-        if (issue_full_valid_reg_s = '1') then
-            issue_rs1_addr_o        <= iq_ffs_s(to_integer(unsigned(issue_full_addr_reg_s))).rs1_addr;
-            issue_rs2_addr_o        <= iq_ffs_s(to_integer(unsigned(issue_full_addr_reg_s))).rs2_addr;
-            spec_instr_o            <= iq_ffs_s(to_integer(unsigned(issue_full_addr_reg_s))).is_spec;
+        if (issue_valid_reg_s = '1') then
+            issue_rs1_addr_o        <= iq_ffs_s(to_integer(unsigned(issue_addr_reg_s))).rs1_addr;
+            issue_rs2_addr_o        <= iq_ffs_s(to_integer(unsigned(issue_addr_reg_s))).rs2_addr;
+            spec_instr_o            <= iq_ffs_s(to_integer(unsigned(issue_addr_reg_s))).is_spec;
             
             -- Set operand ready fields if tag is published, else read from IQ
-            if(cdb_valid_i = '1' and iq_ffs_s(to_integer(unsigned(issue_full_addr_reg_s))).rs1_addr = cdb_addr_i) then
+            if(cdb_valid_i = '1' and iq_ffs_s(to_integer(unsigned(issue_addr_reg_s))).rs1_addr = cdb_addr_i) then
                 issue_rs1_ready_o   <= '1';
             else
-                issue_rs1_ready_o   <= iq_ffs_s(to_integer(unsigned(issue_full_addr_reg_s))).rs1_ready;
+                issue_rs1_ready_o   <= iq_ffs_s(to_integer(unsigned(issue_addr_reg_s))).rs1_ready;
             end if;
             
             -- Set operand ready fields if tag is published, else read from IQ
-            if(cdb_valid_i = '1' and iq_ffs_s(to_integer(unsigned(issue_full_addr_reg_s))).rs2_addr = cdb_addr_i) then
+            if(cdb_valid_i = '1' and iq_ffs_s(to_integer(unsigned(issue_addr_reg_s))).rs2_addr = cdb_addr_i) then
                 issue_rs2_ready_o   <= '1';
             else
-                issue_rs2_ready_o   <= iq_ffs_s(to_integer(unsigned(issue_full_addr_reg_s))).rs2_ready;
-            end if;
-            
-        elsif (issue_partial_valid_reg_s = '1') then       
-            issue_rs1_addr_o        <= iq_ffs_s(to_integer(unsigned(issue_partial_addr_reg_s))).rs1_addr;
-            issue_rs2_addr_o        <= iq_ffs_s(to_integer(unsigned(issue_partial_addr_reg_s))).rs2_addr;
-            spec_instr_o            <= iq_ffs_s(to_integer(unsigned(issue_partial_addr_reg_s))).is_spec;
-            
-            -- Set operand ready fields if tag is published, else read from IQ
-            if(cdb_valid_i = '1' and iq_ffs_s(to_integer(unsigned(issue_partial_addr_reg_s))).rs1_addr = cdb_addr_i) then
-                issue_rs1_ready_o   <= '1';
-            else
-                issue_rs1_ready_o   <= iq_ffs_s(to_integer(unsigned(issue_partial_addr_reg_s))).rs1_ready;
-            end if;
-            
-            -- Set operand ready fields if tag is published, else read from IQ
-            if(cdb_valid_i = '1' and iq_ffs_s(to_integer(unsigned(issue_partial_addr_reg_s))).rs2_addr = cdb_addr_i) then
-                issue_rs2_ready_o   <= '1';
-            else
-                issue_rs2_ready_o   <= iq_ffs_s(to_integer(unsigned(issue_partial_addr_reg_s))).rs2_ready;
+                issue_rs2_ready_o   <= iq_ffs_s(to_integer(unsigned(issue_addr_reg_s))).rs2_ready;
             end if;
         end if;
     end process;
@@ -362,34 +315,30 @@ begin
     -- 3) ready instruction with one  operand  to issue
     process(clk)
         variable idx  : integer;
+        variable full_idx  : integer;
         variable found: std_logic;
         variable i    : integer;
     begin
         if rising_edge(clk) then
-    
-            if reset = '0' then
-    
+            
+            if reset = '0' then 
+            
                 dispatch_ready_s      <= '0';
                 dispatch_addr_s       <= (others => '0');
     
-                issue_full_valid_s    <= '0';
-                issue_full_addr_s     <= (others => '0');
-    
-                issue_partial_valid_s <= '0';
-                issue_partial_addr_s  <= (others => '0');
+                issue_valid_s    <= '0';
+                issue_addr_s     <= (others => '0');
     
                 dispatch_ptr_s <= 0;
                 issue_ptr_s    <= 0;
-                partial_ptr_s  <= 0;
-    
             else
-    
+            
             --------------------------------------------------------------------
             -- DISPATCH (round-robin free slot)
             --------------------------------------------------------------------
                 idx := -1;
                 found := '0';
-    
+                
                 for k in 0 to IQ_DEPTH-1 loop
                     i := (dispatch_ptr_s + k) mod IQ_DEPTH;
     
@@ -398,7 +347,7 @@ begin
                         found := '1';
                     end if;
                 end loop;
-    
+                
                 if stall_is_i = '0' then
                     if found = '1' then
                         dispatch_ready_s <= '1';
@@ -408,7 +357,7 @@ begin
                         dispatch_ready_s <= '0';
                     end if;
                 end if;
-    
+            
             --------------------------------------------------------------------
             -- FULL ISSUE (both operands ready)
             --------------------------------------------------------------------
@@ -418,59 +367,34 @@ begin
                 for k in 1 to IQ_DEPTH-1 loop
                     i := (issue_ptr_s + k) mod IQ_DEPTH;
     
-                    if (iq_ffs_s(i).valid = '1' and
-                        iq_ffs_s(i).rs1_ready = '1' and
-                        iq_ffs_s(i).rs2_ready = '1' and
-                        found = '0') then
-    
-                        idx := i;
-                        found := '1';
+                    if (iq_ffs_s(i).valid = '1' and iq_ffs_s(i).rs1_ready = '1' and 
+                        iq_ffs_s(i).rs2_ready = '1' and found = '0') then
+                        idx     := i;
+                        found   := '1';
+                        exit;
                     end if;
                 end loop;
-    
-                if stall_iq_is_i = '0' then
-                    if found = '1' then
-                        issue_full_valid_s <= '1';
-                        issue_full_addr_s  <= std_logic_vector(to_unsigned(idx, IQ_BITS));
-                        issue_ptr_s        <= (idx) mod IQ_DEPTH;
-                    else
-                        issue_full_valid_s <= '0';
-                    end if;
-                end if;
-    
-            --------------------------------------------------------------------
-            -- PARTIAL ISSUE (one operand ready, no JALR)
-            --------------------------------------------------------------------
-                idx := -1;
-                found := '0';
-    
+                    
                 for k in 1 to IQ_DEPTH-1 loop
-                    i := (partial_ptr_s + k) mod IQ_DEPTH;
-    
-                    if (iq_ffs_s(i).valid = '1' and
-                        iq_ffs_s(i).is_jalr = '0' and
-                        ((iq_ffs_s(i).rs1_ready = '1' and iq_ffs_s(i).rs2_ready = '0') or
-                         (iq_ffs_s(i).rs1_ready = '0' and iq_ffs_s(i).rs2_ready = '1')) and
-                        found = '0') then
-    
-                        idx := i;
-                        found := '1';
+                    i := (issue_ptr_s + k) mod IQ_DEPTH;
+                    if (iq_ffs_s(i).valid = '1' and iq_ffs_s(i).is_jalr = '0') and
+                        (iq_ffs_s(i).rs1_ready = '1' or iq_ffs_s(i).rs2_ready = '1') and found = '0' then
+                        idx     := i;
+                        found   := '1';
+                        exit;
                     end if;
                 end loop;
     
                 if stall_iq_is_i = '0' then
                     if found = '1' then
-                        issue_partial_valid_s <= '1';
-                        issue_partial_addr_s  <= std_logic_vector(to_unsigned(idx, IQ_BITS));
-                        partial_ptr_s         <= (idx) mod IQ_DEPTH;
+                        issue_valid_s <= '1';
+                        issue_addr_s  <= std_logic_vector(to_unsigned(idx, IQ_BITS));
+                        issue_ptr_s   <= (idx) mod IQ_DEPTH;
                     else
-                        issue_partial_valid_s <= '0';
+                        issue_valid_s <= '0';
                     end if;
                 end if;
-    
             end if;
         end if;
     end process;
-    
-    
 end Behavioral;
