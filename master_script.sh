@@ -64,6 +64,5 @@ COMPARE_EXIT=$?
 # ======================================================
 # Cleanup temporary Vivado files
 # ======================================================
-rm -rf .Xil *.jou *.log
 
 exit $COMPARE_EXIT
