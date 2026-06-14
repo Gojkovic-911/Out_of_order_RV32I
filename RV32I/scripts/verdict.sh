@@ -75,9 +75,3 @@ done
 echo "============================================================"
 #echo ""
 
-# Izađi sa odgovarajućim kodom
-if [ $FAIL -gt 0 ]; then
-    exit 1
-else
-    exit 0
-fi

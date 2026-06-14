@@ -16,3 +16,4 @@ RISCV_project
 *.txt
 cmp
 *.hex
+*.dis

@@ -502,7 +502,7 @@ begin
             end if;
         end if;    
     end process;
-            
+    
     -- LSU FFs READ
     lsu_ffs_read:process(rs_lsu_execute_valid_s, rs_lsu_ffs_arr_s, rs_lsu_execute_addr_s, lsu_cdb_req_s, grant_lsu_s) is
     begin    
@@ -538,7 +538,7 @@ begin
         branch_b_s          <= (others =>'0'); 
         branch_subtype_s    <= (others =>'0'); 
         branch_taken_idx_o  <= (others =>'0'); 
-                 
+        
         -- Branch
         -- if(ready)
         if(rs_branch_execute_valid_s = '1') then
@@ -676,7 +676,7 @@ begin
     end process;
     
     rs_full_o <= branch_rs_full_s or alu_rs_full_s or lsu_rs_full_s;
-
+    
     -- Generic priority encoders for finding 
     -- 1) free slot for entry 
     -- 2) ready instruction with both operands to execute

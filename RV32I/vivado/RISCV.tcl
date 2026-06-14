@@ -6,10 +6,19 @@ proc getScriptDirectory {} {
     return $scriptFolder
 }
 
+
 unset -nocomplain env(PYTHONHOME)
 unset -nocomplain env(PYTHONPATH)
 
 set testname [lindex $argv 0]
+
+set num_threads 8
+
+# Primjeni na sve faze
+set_param general.maxThreads $num_threads
+set_param synth.maxThreads $num_threads
+set_param route.maxThreads $num_threads
+set_param place.maxThreads $num_threads
 
 # Change working directory to script file directory
 cd [getScriptDirectory]
@@ -107,6 +116,7 @@ if {$testname == "regression"} {
     exec ../scripts/compile.sh $testname
     
     launch_simulation
+    puts "Running test: $testname"
     run 300 us
 
     puts "Getting golden vector registers state"

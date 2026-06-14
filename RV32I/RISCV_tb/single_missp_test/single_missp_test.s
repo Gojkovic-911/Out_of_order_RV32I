@@ -1,3 +1,4 @@
+nop
 # ===================================================================
 # BIG STRESS TEST – ONE BRANCH MISPREDICTION + JAL (no JALR)
 # No loads/stores. Only ALU + JAL.

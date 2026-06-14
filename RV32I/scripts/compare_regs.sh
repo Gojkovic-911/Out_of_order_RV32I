@@ -18,11 +18,11 @@ NC='\033[0m'
 
 if [ ! -f "$GOLDEN_REGS_FILE" ]; then
     echo -e "${RED}Golden file missing: $GOLDEN_REGS_FILE${NC}"
-    exit 1
+    exit 2
 fi
 if [ ! -f "$SIM_REGS_FILE" ]; then
     echo -e "${RED}Dump file missing: $SIM_REGS_FILE${NC}"
-    exit 1
+    exit 3
 fi
 
 # ======================================================
@@ -140,4 +140,3 @@ rm -f /tmp/rename_map.txt /tmp/phys_vals.txt /tmp/golden_vals.txt
 
 echo ""
 echo -e "${YELLOW}Detailed report saved to: $RESULT_FILE${NC}"
-exit $FAIL

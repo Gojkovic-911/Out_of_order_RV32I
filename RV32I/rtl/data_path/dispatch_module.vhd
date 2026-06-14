@@ -103,6 +103,7 @@ architecture Behavioral of issue_module is
     
     signal dispatch_ptr_s : integer range 0 to IQ_DEPTH-1 := 0;
     signal issue_ptr_s    : integer range 0 to IQ_DEPTH-1 := 0;
+    signal iq_full_s    : std_logic;
     
 begin
 
@@ -112,7 +113,6 @@ begin
     begin
         if (rising_edge(clk)) then
             if (reset = '0') then
-                iq_full_o <= '0';
                 iq_ram_s <= (others => (others => (others => '0')));
                 
                 issue_rd_addr_o       <= (others => '0');
@@ -124,20 +124,9 @@ begin
                 issue_instruction     <= (others => '0');
                 
             else
-                -- issue_rd_addr_o       <= (others => '0');
-                -- issue_instr_type_o    <= (others => '0');
-                -- issue_instr_subtype_o <= (others => '0');
-                -- issue_imm_o           <= (others => '0');
-                -- issue_pc_reg_o        <= (others => '0');
-                -- issue_rob_idx_o       <= (others => '0');
-                -- issue_instruction     <= (others => '0');
-                
                 -- Dispatch
                 -- Write into the Instruction Queue RAM
-                iq_full_o <= '1';
                 if (dispatch_ready_s = '1') then
-                    iq_full_o <= '0';
-                    
                     if (dispatch_valid_i = '1') then
                         iq_ram_s(to_integer(unsigned(dispatch_addr_s))).rd_addr         <= dispatch_rd_addr_i;
                         iq_ram_s(to_integer(unsigned(dispatch_addr_s))).instr_type      <= dispatch_instr_type_i;
@@ -309,92 +298,85 @@ begin
         end if;
     end process;
     
-    -- Generic priority encoders for finding 
+    
+    -- Generic priority encoder for finding 
     -- 1) free slot for dispatch 
+    dipatch_enc:process(iq_ffs_s)
+        variable i    : integer;
+    begin
+        --------------------------------------------------------------------
+        -- DISPATCH (round-robin free slot)
+        --------------------------------------------------------------------
+        
+        dispatch_ready_s <= '0';
+        dispatch_addr_s  <= std_logic_vector(to_unsigned(0, IQ_BITS));
+        dispatch_ptr_s   <= 0;
+        iq_full_o <= '1';
+        
+        for k in 1 to IQ_DEPTH-1 loop
+            i := (dispatch_ptr_s + k) mod IQ_DEPTH;
+            
+            if iq_ffs_s(i).valid = '0' and issue_addr_reg_s /= std_logic_vector(to_unsigned(i, IQ_BITS)) then
+                dispatch_ready_s <= '1';
+                dispatch_addr_s  <= std_logic_vector(to_unsigned(i, IQ_BITS));
+                dispatch_ptr_s   <= i;
+                iq_full_o <= '0';
+                exit;
+            end if;
+        end loop;
+    end process;
+    
+    
+    -- Generic priority encoders for finding 
     -- 2) ready instruction with both operands to issue
     -- 3) ready instruction with one  operand  to issue
-    process(clk)
+    process(iq_ffs_s)
         variable idx  : integer;
-        variable full_idx  : integer;
         variable found: std_logic;
         variable i    : integer;
     begin
-        if rising_edge(clk) then
-            
-            if reset = '0' then 
-            
-                dispatch_ready_s      <= '0';
-                dispatch_addr_s       <= (others => '0');
-    
-                issue_valid_s    <= '0';
-                issue_addr_s     <= (others => '0');
-    
-                dispatch_ptr_s <= 0;
-                issue_ptr_s    <= 0;
-            else
-            
-            --------------------------------------------------------------------
-            -- DISPATCH (round-robin free slot)
-            --------------------------------------------------------------------
-                idx := -1;
-                found := '0';
-                
-                for k in 0 to IQ_DEPTH-1 loop
-                    i := (dispatch_ptr_s + k) mod IQ_DEPTH;
-    
-                    if (iq_ffs_s(i).valid = '0' and found = '0') then
-                        idx := i;
-                        found := '1';
-                    end if;
-                end loop;
-                
-                if stall_is_i = '0' then
-                    if found = '1' then
-                        dispatch_ready_s <= '1';
-                        dispatch_addr_s  <= std_logic_vector(to_unsigned(idx, IQ_BITS));
-                        dispatch_ptr_s   <= (idx + 1) mod IQ_DEPTH;
-                    else
-                        dispatch_ready_s <= '0';
-                    end if;
-                end if;
-            
+        -- if rising_edge(clk) then
+        --     if reset = '0' then 
+        --         issue_valid_s   <= '0';
+        --         issue_addr_s    <= (others => '0');
+        --         issue_ptr_s     <= 0;
+        --     else
             --------------------------------------------------------------------
             -- FULL ISSUE (both operands ready)
             --------------------------------------------------------------------
-                idx := -1;
-                found := '0';
-    
+            idx := -1;
+            found := '0';
+            
+            for k in 1 to IQ_DEPTH-1 loop
+                i := (issue_ptr_s + k) mod IQ_DEPTH;
+                if  iq_ffs_s(i).rs1_ready = '1' and iq_ffs_s(i).rs2_ready = '1' and iq_ffs_s(i).valid = '1' and found = '0' then
+                    idx     := i;
+                    found   := '1';
+                    exit;
+                end if;
+            end loop;
+            
+            if found = '0' then
                 for k in 1 to IQ_DEPTH-1 loop
                     i := (issue_ptr_s + k) mod IQ_DEPTH;
-    
-                    if (iq_ffs_s(i).valid = '1' and iq_ffs_s(i).rs1_ready = '1' and 
-                        iq_ffs_s(i).rs2_ready = '1' and found = '0') then
+                    if  iq_ffs_s(i).valid = '1' and iq_ffs_s(i).is_jalr = '0' and (iq_ffs_s(i).rs1_ready = '1' or iq_ffs_s(i).rs2_ready = '1') then
                         idx     := i;
                         found   := '1';
                         exit;
                     end if;
                 end loop;
-                    
-                for k in 1 to IQ_DEPTH-1 loop
-                    i := (issue_ptr_s + k) mod IQ_DEPTH;
-                    if (iq_ffs_s(i).valid = '1' and iq_ffs_s(i).is_jalr = '0') and
-                        (iq_ffs_s(i).rs1_ready = '1' or iq_ffs_s(i).rs2_ready = '1') and found = '0' then
-                        idx     := i;
-                        found   := '1';
-                        exit;
-                    end if;
-                end loop;
-    
-                if stall_iq_is_i = '0' then
-                    if found = '1' then
-                        issue_valid_s <= '1';
-                        issue_addr_s  <= std_logic_vector(to_unsigned(idx, IQ_BITS));
-                        issue_ptr_s   <= (idx) mod IQ_DEPTH;
-                    else
-                        issue_valid_s <= '0';
-                    end if;
+            end if;
+            
+            if stall_iq_is_i = '0' then
+                if found = '1' then
+                    issue_valid_s <= '1';
+                    issue_addr_s  <= std_logic_vector(to_unsigned(idx, IQ_BITS));
+                    issue_ptr_s   <= (idx) mod IQ_DEPTH;
+                else
+                    issue_valid_s <= '0';
                 end if;
             end if;
-        end if;
+        --     end if;
+        -- end if;
     end process;
 end Behavioral;

@@ -9,12 +9,12 @@ gcc-riscv64-unknown-elf
 ## Quick Run
 
 ```bash
-make single_missp_test   # runs assembly, simulation, and register verification
+make single_missp_test   # Runs assembly, simulation, and register verification
 ```
 ## Regression run
 
 ```bash
-make   # runs a mini regression of 3 tests
+make   # Runs a regression of all the tests
 ```
 
 ## Adding a new test

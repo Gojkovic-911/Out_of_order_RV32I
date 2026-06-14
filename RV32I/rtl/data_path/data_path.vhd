@@ -263,16 +263,13 @@ begin
             if reset = '0' then
                 pc_reg_s <= (others => '0');
                 fetch_instr_valid_s <= '0';
-            elsif stall_if_i = '1' then -- stall
-                pc_reg_s <= pc_reg_s;
-                fetch_instr_valid_s <= '1';
             elsif flush_pipe_i = '1' then      
                 pc_reg_s   <= pc_next_s;
                 fetch_instr_valid_s <= '1';
             elsif decode_is_jump_s = '1'  then -- BRANCH and JAL
                 pc_reg_s <= std_logic_vector(unsigned(decode_pc_reg_s) + unsigned(decode_imm_s) + to_unsigned(4, DATA_WIDTH));
                 fetch_instr_valid_s <= '1';
-            else      
+            elsif stall_if_i = '0' then -- stall
                 pc_reg_s   <= pc_next_s;
                 fetch_instr_valid_s <= '1';
             end if;
@@ -409,7 +406,7 @@ begin
             rename_snapshot_i       => rename_snapshot_i,
             flush_i                 => flush_pipe_i,
             
-            rename_instr_valid_i    => rename_instr_valid_s and (not stall_rn_i),
+            rename_instr_valid_i    => rename_instr_valid_s and (not stall_rn_i), -- ?? Can I have a scenario where i use stall and not instr_valid ..
     
             cdb_valid_i             => cdb_valid_s, 
             cdb_rd_addr_i           => cdb_rd_addr_s,

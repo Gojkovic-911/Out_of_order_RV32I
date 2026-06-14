@@ -1,3 +1,4 @@
+nop
 # ===================================================================
 # BIG STRESS TEST – ONE BRANCH MISPREDICTION + JAL (no JALR)
 # No loads/stores. Only ALU + JAL.
@@ -196,7 +197,7 @@ and     x31, x30, x9
 or      x1,  x31, x10
 
 # -------------------- ONE JALR -------------------
-jalr     x2, x0, 0x360      
+jalr     x2, x0, 0x364     
 
 # ========== FALL‑THROUGH PATH (executed) ===========================
 # Large block of ALU instructions that will not be executed
