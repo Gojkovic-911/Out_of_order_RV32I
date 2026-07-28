@@ -6,11 +6,6 @@ VIVADO_SCRIPT = RV32I/vivado/RISCV.tcl
 # Pronađi Vivado instalaciju
 VIVADO = $(shell locate bin/vivado | grep '/bin/vivado$$' | head -1)
 
-# Provjeri da li je Vivado pronađen
-ifeq ($(strip $(VIVADO)),)
-    VIVADO = ~/Public/Vivado/2023.2/bin/vivado
-endif
-
 .PHONY: all clean res regression
 
 # Default target: run regression (no argument passed)
