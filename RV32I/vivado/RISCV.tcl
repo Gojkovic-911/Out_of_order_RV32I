@@ -14,7 +14,7 @@ set testname [lindex $argv 0]
 
 set num_threads 8
 
-# Primjeni na sve faze
+# Apply to all phases
 set_param general.maxThreads $num_threads
 set_param synth.maxThreads $num_threads
 set_param route.maxThreads $num_threads
@@ -41,11 +41,13 @@ if { [file exists $project_file] } {
 
     add_files -norecurse ../rtl/riscv_top_mem.vhd 
     add_files -norecurse ../rtl/TOP_RISCV.vhd 
+    add_files -norecurse ../rtl/axi_lite_master.vhd
     add_files -norecurse ../rtl/BRAM_byte_addressable.vhd
     add_files -norecurse ../rtl/data_path/immediate.vhd 
     add_files -norecurse ../rtl/data_path/ALU_simple.vhd 
     add_files -norecurse ../rtl/data_path/register_bank.vhd 
     add_files -norecurse ../rtl/data_path/LSU.vhd
+    add_files -norecurse ../rtl/data_path/LSQ.vhd
     add_files -norecurse ../rtl/data_path/branch_decision_unit.vhd
     add_files -norecurse ../rtl/data_path/free_list_fifo.vhd
     add_files -norecurse ../rtl/data_path/renaming_module.vhd
@@ -60,6 +62,7 @@ if { [file exists $project_file] } {
     add_files -norecurse ../rtl/packages/alu_ops_pkg.vhd 
     add_files -norecurse ../rtl/packages/instr_types_pkg.vhd
     add_files -norecurse ../rtl/packages/txt_util.vhd
+    add_files -fileset sim_1 -norecurse ../RISCV_tb/axi_lite_mem_model.vhd
     add_files -fileset sim_1 -norecurse ../RISCV_tb/TOP_RISCV_tb.vhd
 }
 
@@ -99,7 +102,7 @@ if {$testname == "regression"} {
         exec ../scripts/compile.sh $d
 
         puts "Running test: $d"
-        run 300 us
+        run 3000 us
 
         puts "Getting golden vector registers state"
         exec /usr/bin/python3 ../scripts/get_golden_vector.py $d
@@ -117,7 +120,7 @@ if {$testname == "regression"} {
     
     launch_simulation
     puts "Running test: $testname"
-    run 300 us
+    run 3000 us
 
     puts "Getting golden vector registers state"
     exec /usr/bin/python3 ../scripts/get_golden_vector.py $testname

@@ -19,12 +19,10 @@ entity control_path is
         instr_format_o          : out std_logic_vector(2 downto 0); -- Immediate 
         
         fetch_is_jump_o        : out std_logic;
-        fetch_is_spec_o        : out std_logic;
 
         rename_rd_we_o          : out std_logic;    -- Rd used
         rename_rs1_used_o       : out std_logic;    -- rs1 used
         rename_rs2_used_o       : out std_logic;    -- rs2 used
-        rename_snapshot_o       : out std_logic;
         
         pc_next_sel_o           : out std_logic;
         
@@ -46,6 +44,7 @@ entity control_path is
         free_list_fifo_empty_i  : in std_logic;
         iq_full_i               : in std_logic;
         rs_full_i               : in std_logic;
+        lsq_full_i              : in std_logic;
         misspredict_i           : in std_logic
         
         ); 
@@ -100,8 +99,7 @@ begin
         )
         port map(
             fetch_intr_i    => instruction_i,
-            is_jump_o       => fetch_is_jump_o,
-            is_spec_o       => fetch_is_spec_o
+            is_jump_o       => fetch_is_jump_o
         );
         
     --IF/ID register
@@ -164,7 +162,6 @@ begin
     rename_rs1_used_o   <= rename_rs1_used_s;
     rename_rs2_used_o   <= rename_rs2_used_s;
     
-    rename_snapshot_o   <= '1' when rename_instr_type_s = JALR or rename_instr_type_s = BRANCH else '0';
     
     -- Dispatch / Issue stage
     -- RN/IS register
@@ -218,7 +215,7 @@ begin
                                 NONE_L;
     
     -- Generate stall signals
-    stall:process (rob_full_i, free_list_fifo_empty_i, rename_rd_we_s, iq_full_i, rs_full_i) is
+    stall:process (rob_full_i, free_list_fifo_empty_i, rename_rd_we_s, iq_full_i, rs_full_i, lsq_full_i) is
     begin
         stall_if_o      <= '0';
         stall_id_s      <= '0';
@@ -228,7 +225,8 @@ begin
         stall_iq_is_o   <= '0';
         
         -- ROB is full OR (free_list_fifo is empty AND there's an rd instruction in rename stage)
-        if(rob_full_i = '1' or (free_list_fifo_empty_i = '1' and rename_rd_we_s = '1')) then
+        -- OR LSQ is full AND there's a load/store in rename stage
+        if(rob_full_i = '1' or (free_list_fifo_empty_i = '1' and rename_rd_we_s = '1') or lsq_full_i = '1') then
             stall_if_o <= '1';
             stall_id_s <= '1';
             stall_rn_s <= '1';

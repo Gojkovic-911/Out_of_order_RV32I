@@ -27,10 +27,11 @@ end BRAM;
 architecture behavioral of BRAM is type ram_type is array(0 to 2**WADDR - 1)
                                       of std_logic_vector(7 downto 0); signal ram_s :
                                                                           ram_type := (others => (others => '0'));
+   signal rd_a_s, rd_b_s : std_logic_vector(31 downto 0);
 
 begin
 
-   -- sinhroni upis
+   -- synchronous write
    process(clk)
    begin
       if(rising_edge(clk)) then
@@ -65,30 +66,44 @@ begin
       end if;
    end process;
 
-   -- asinhrono citanje
-   process(en_a_i, en_b_i, addr_a_i, addr_b_i)
+   -- addressed word, registered below
+   process(en_a_i, en_b_i, addr_a_i, addr_b_i, ram_s)
    begin
-     data_a_o(31 downto 24) <= ( others => '0');
-     data_a_o(23 downto 16) <= ( others => '0');
-     data_a_o(15 downto 8)  <= ( others => '0');
-     data_a_o(7 downto 0)   <= ( others => '0');
+     rd_a_s(31 downto 24) <= ( others => '0');
+     rd_a_s(23 downto 16) <= ( others => '0');
+     rd_a_s(15 downto 8)  <= ( others => '0');
+     rd_a_s(7 downto 0)   <= ( others => '0');
      
-     data_b_o(31 downto 24) <= ( others => '0');
-     data_b_o(23 downto 16) <= ( others => '0');
-     data_b_o(15 downto 8)  <= ( others => '0');
-     data_b_o(7 downto 0)   <= ( others => '0');
+     rd_b_s(31 downto 24) <= ( others => '0');
+     rd_b_s(23 downto 16) <= ( others => '0');
+     rd_b_s(15 downto 8)  <= ( others => '0');
+     rd_b_s(7 downto 0)   <= ( others => '0');
      
       if(en_a_i = '1') then
-         data_a_o(31 downto 24) <= ram_s(to_integer(unsigned(addr_a_i)+3));
-         data_a_o(23 downto 16) <= ram_s(to_integer(unsigned(addr_a_i)+2));
-         data_a_o(15 downto 8)  <= ram_s(to_integer(unsigned(addr_a_i)+1));
-         data_a_o(7 downto 0)   <= ram_s(to_integer(unsigned(addr_a_i)));
+         rd_a_s(31 downto 24) <= ram_s(to_integer(unsigned(addr_a_i)+3));
+         rd_a_s(23 downto 16) <= ram_s(to_integer(unsigned(addr_a_i)+2));
+         rd_a_s(15 downto 8)  <= ram_s(to_integer(unsigned(addr_a_i)+1));
+         rd_a_s(7 downto 0)   <= ram_s(to_integer(unsigned(addr_a_i)));
       end if;
       if(en_b_i = '1') then
-         data_b_o(31 downto 24) <= ram_s(to_integer(unsigned(addr_b_i)+3));
-         data_b_o(23 downto 16) <= ram_s(to_integer(unsigned(addr_b_i)+2));
-         data_b_o(15 downto 8)  <= ram_s(to_integer(unsigned(addr_b_i)+1));
-         data_b_o(7 downto 0)   <= ram_s(to_integer(unsigned(addr_b_i)));
+         rd_b_s(31 downto 24) <= ram_s(to_integer(unsigned(addr_b_i)+3));
+         rd_b_s(23 downto 16) <= ram_s(to_integer(unsigned(addr_b_i)+2));
+         rd_b_s(15 downto 8)  <= ram_s(to_integer(unsigned(addr_b_i)+1));
+         rd_b_s(7 downto 0)   <= ram_s(to_integer(unsigned(addr_b_i)));
+      end if;
+   end process;
+   
+   -- synchronous read (block RAM): data one cycle after the address,
+   -- read-first (a write in the same cycle shows up on the next read)
+   process(clk)
+   begin
+      if(rising_edge(clk)) then
+         if(en_a_i = '1') then
+            data_a_o <= rd_a_s;
+         end if;
+         if(en_b_i = '1') then
+            data_b_o <= rd_b_s;
+         end if;
       end if;
    end process;
 

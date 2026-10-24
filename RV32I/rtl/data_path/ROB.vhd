@@ -21,14 +21,18 @@ entity ROB is
         rename_rd_phys_i    : in  std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
         rename_prev_phys_i  : in  std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
         rename_rd_instr_i   : in  std_logic;
-        rename_spec_instr_i : in  std_logic;
         rename_instruction_i: in  std_logic_vector(DATA_WIDTH-1 downto 0);
+        rename_is_store_i   : in  std_logic;
         rob_tail_idx_o      : out std_logic_vector(ROB_ADDR_BITS-1 downto 0);
-        
+
         -- WB stage
         wb_valid_i          : in  std_logic;
         wb_rob_idx_i        : in  std_logic_vector(ROB_ADDR_BITS-1 downto 0);
-        
+
+        -- Store address/data in LSQ
+        store_done_valid_i  : in  std_logic;
+        store_done_idx_i    : in  std_logic_vector(ROB_ADDR_BITS-1 downto 0);
+
         -- Jump addr
         branch_addr_i       : in  std_logic_vector(DATA_WIDTH-1 downto 0);
         branch_addr_valid_i : in  std_logic;
@@ -39,7 +43,6 @@ entity ROB is
         branch_taken_idx_i  : in  std_logic_vector(ROB_ADDR_BITS-1 downto 0);
         
         misspredict_o       : out std_logic;
-        clear_spec_o        : out std_logic;
         
         -- Commit stage
         commit_valid_o      : out std_logic;
@@ -47,7 +50,8 @@ entity ROB is
         commit_rd_phys_o    : out std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
         commit_prev_phys_o  : out std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
         commit_rd_instr_o   : out std_logic;
-        
+        commit_store_o      : out std_logic;
+
         commit_jump_addr_o  : out std_logic_vector(DATA_WIDTH-1 downto 0);
         
         rob_full_o          : out std_logic;
@@ -64,9 +68,9 @@ architecture Behavioral of rob is
         rd_arch     : std_logic_vector(4 downto 0);
         rd_phys     : std_logic_vector(5 downto 0);
         prev_phys   : std_logic_vector(5 downto 0);
-        is_branch   : std_logic;  
-        branch_taken: std_logic;  
-        is_spec     : std_logic;
+        is_branch   : std_logic;
+        is_store    : std_logic;
+        branch_taken: std_logic;
         branch_addr : std_logic_vector(DATA_WIDTH-1 downto 0);
         instruction : std_logic_vector(DATA_WIDTH-1 downto 0);
     end record;
@@ -78,7 +82,6 @@ architecture Behavioral of rob is
     
     signal rob_full_s       : std_logic;
     signal misspredict_s    : std_logic;
-    signal clear_spec_s     : std_logic;
     
 begin
     
@@ -89,20 +92,21 @@ begin
             if (reset = '0') then
                 head    <= 0;
                 tail    <= 0;
-                rob     <=  (others => (valid => '0', ready => '0', rd_instr => '0', is_branch => '0', branch_taken => '0', is_spec => '0', others => (others => '0')));
-                
+                rob     <=  (others => (valid => '0', ready => '0', rd_instr => '0', is_branch => '0', is_store => '0', branch_taken => '0', others => (others => '0')));
+
                 commit_valid_o      <= '0';
+                commit_store_o      <= '0';
                 commit_jump_addr_o  <= (others => '0');
                 commit_rd_arch_o    <= (others => '0');
                 commit_rd_phys_o    <= (others => '0');
                 commit_prev_phys_o  <= (others => '0');
                 commit_rd_instr_o   <= '0';
                 misspredict_s <= '0';
-                clear_spec_s <= '0';
                 
-            else  
+            else
                 commit_valid_o      <= '0';
-                
+                commit_store_o      <= '0';
+
                 -- Rename stage
                 if rename_instr_valid_i = '1' and rob(tail).valid = '0' then
                     rob(tail).valid     <= '1';
@@ -115,7 +119,9 @@ begin
                     rob(tail).rd_phys   <= rename_rd_phys_i;
                     rob(tail).prev_phys <= rename_prev_phys_i;
                     rob(tail).rd_instr  <= rename_rd_instr_i;
-                    rob(tail).is_spec   <= rename_spec_instr_i;
+                    rob(tail).is_store  <= rename_is_store_i;
+                    rob(tail).is_branch     <= '0';
+                    rob(tail).branch_taken  <= '0';
                     rob(tail).instruction   <= rename_instruction_i;
                     tail                <= (tail + 1) mod ROB_DEPTH;
                 end if;
@@ -123,7 +129,10 @@ begin
                 -- Write-back stage    
                 if (wb_valid_i = '1') then
                     rob(to_integer(unsigned(wb_rob_idx_i))).ready <= '1';
-                    
+                end if;
+
+                if (store_done_valid_i = '1') then
+                    rob(to_integer(unsigned(store_done_idx_i))).ready <= '1';
                 end if;
                 
                 -- Branch in    
@@ -138,39 +147,27 @@ begin
                 end if;
                 
                 -- Commit stage
-                if rob(head).valid = '1' and rob(head).ready = '1' and rob(head).is_spec =  '0' then
+                if rob(head).valid = '1' and rob(head).ready = '1' then
                     commit_valid_o      <= '1';
                     commit_rd_instr_o   <= rob(head).rd_instr;
                     commit_rd_arch_o    <= rob(head).rd_arch;
                     commit_rd_phys_o    <= rob(head).rd_phys;
                     commit_prev_phys_o  <= rob(head).prev_phys;
-                    
+                    commit_store_o      <= rob(head).is_store;
+
                     if(rob(head).is_branch = '1') then
                         if(rob(head).branch_taken = '0') then -- missprediction
                         
                             commit_jump_addr_o  <= rob(head).branch_addr;
                             misspredict_s       <= '1';
                             
-                            -- Flush the speculative instructions
+                            -- Branch at head: everything younger is wrong path
+                            -- (including the entry renamed in this same cycle)
                             for i in 0 to ROB_DEPTH-1 loop
-                                if (rob(i).is_spec = '1' ) then
-                                    rob(i).valid <= '0';
-                                end if;
+                                rob(i).valid <= '0';
                             end loop;
                             
                             tail <= (head + 1) mod ROB_DEPTH;
-                            clear_spec_s <= '0';
-                            
-                        else    -- if it's taken clear the spec fields
-                            misspredict_s <= '0';
-                            
-                            -- Clear the spec fields
-                            for i in 0 to ROB_DEPTH-1 loop
-                                if (rob(i).valid = '1' ) then
-                                    rob(i).is_spec <= '0';
-                                end if;
-                            end loop;
-                            clear_spec_s <= '1';
                         end if;
                     end if;
                     
@@ -180,17 +177,40 @@ begin
                 if(misspredict_s = '1') then
                     misspredict_s <= '0';
                 end if;
-                if(clear_spec_s = '1') then
-                    clear_spec_s <= '0';
-                end if;
             end if;      
         end if;
     end process;
     
     misspredict_o   <= misspredict_s;
-    clear_spec_o    <= clear_spec_s;
                         
     rob_tail_idx_o <= std_logic_vector(to_unsigned(tail, 6));
+
+    -- pragma translate_off
+    -- Deadlock check: valid ROB head not committing
+    rob_deadlock_check: process(clk)
+        constant STUCK_LIMIT : natural := 1000;    -- a load can wait behind a full LSQ of slow (AXI) stores
+        variable head_prev   : integer range 0 to ROB_DEPTH - 1 := 0;
+        variable stuck_cnt   : natural := 0;
+    begin
+        if rising_edge(clk) then
+            if reset = '0' then
+                stuck_cnt := 0;
+            else
+                if (rob(head).valid = '1' and head = head_prev) then
+                    stuck_cnt := stuck_cnt + 1;
+                else
+                    stuck_cnt := 0;
+                end if;
+                head_prev := head;
+
+                assert stuck_cnt < STUCK_LIMIT
+                    report "ROB deadlock: head " & integer'image(head) & " not committed for " &
+                           integer'image(STUCK_LIMIT) & " cycles"
+                    severity failure;
+            end if;
+        end if;
+    end process;
+    -- pragma translate_on
     
     rob_empty_o <= '1' when head = tail and rob(head).valid = '0' else '0';
     rob_full_s  <= '1' when head = tail and rob(head).valid = '1' else '0';

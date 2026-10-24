@@ -2,6 +2,11 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
+-- Free physical registers
+-- Rename pops at rd_ptr, commit pushes the previous mapping at wr_ptr.
+-- rd_ptr_commit follows rd_ptr at commit: rename and commit go in the same
+-- (program) order, so on a misprediction moving rd_ptr back to rd_ptr_commit
+-- returns every register taken by the flushed instructions.
 entity free_list_fifo is
     generic (
         DEPTH       : natural := 64;
@@ -13,7 +18,7 @@ entity free_list_fifo is
         push        : in  std_logic;
         push_data   : in  std_logic_vector(DATA_WIDTH-1 downto 0);
         pop         : in  std_logic;
-        snapshot_i  : in  std_logic;
+        commit_pop  : in  std_logic;    -- committed instruction had popped a register
         flush_i     : in  std_logic;
         pop_data    : out std_logic_vector(DATA_WIDTH-1 downto 0);
         empty       : out std_logic;
@@ -22,106 +27,98 @@ entity free_list_fifo is
 end free_list_fifo;
 
 architecture Behavioral of free_list_fifo is
-    
-    type fifo_entry is record
-        value : std_logic_vector(DATA_WIDTH-1 downto 0);
-        valid : std_logic;
-    end record;
-    
-    type mem_type is array(0 to DEPTH-1) of fifo_entry;
-    
-    -- Function to initialize memory with sequential values (0,1,2,...)
+
+    -- Physical register 0 is never free
+    constant SLOTS : natural := DEPTH - 1;
+
+    type mem_type is array(0 to SLOTS-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+
+    -- All physical registers but 0 are free after reset
     function init_mem return mem_type is
         variable temp_mem : mem_type;
     begin
-        for i in 1 to DEPTH-1 loop
-            temp_mem(i).value := std_logic_vector(to_unsigned(i, DATA_WIDTH));
-            temp_mem(i).valid := '1';
+        for i in 0 to SLOTS-1 loop
+            temp_mem(i) := std_logic_vector(to_unsigned(i + 1, DATA_WIDTH));
         end loop;
-        temp_mem(0).value := (others => '0');
-        temp_mem(0).valid := '1';
         return temp_mem;
     end function;
-    
-    signal mem              : mem_type := init_mem;  -- Initialize directly with all physical registers
-    signal mem_commit         : mem_type := init_mem;  -- Initialize directly with all physical registers
-    signal wr_ptr, rd_ptr   : integer range 0 to DEPTH-1 := 0;
-    signal full_s, empty_s  : std_logic;
-    signal push_valid       : std_logic;
-    signal rd_ptr_commit    : integer range 0 to DEPTH-1 := 0;
-    
+
+    function next_ptr(p : integer) return integer is
+    begin
+        return (p + 1) mod SLOTS;
+    end function;
+
+    signal mem                  : mem_type := init_mem;
+    signal wr_ptr               : integer range 0 to SLOTS-1 := 0;
+    signal rd_ptr               : integer range 0 to SLOTS-1 := 0;
+    signal rd_ptr_commit        : integer range 0 to SLOTS-1 := 0;
+    signal count                : integer range 0 to SLOTS := SLOTS;   -- free for rename
+    signal count_commit         : integer range 0 to SLOTS := SLOTS;   -- free at commit
+    signal push_valid           : std_logic;
+
 begin
-    
+
     push_valid <= '1' when push_data /= std_logic_vector(to_unsigned(0, DATA_WIDTH)) else '0';
-    
+
     process(clk)
+        variable push_v         : boolean;
+        variable count_v        : integer range 0 to SLOTS;
+        variable count_commit_v : integer range 0 to SLOTS;
+        variable rd_ptr_v       : integer range 0 to SLOTS-1;
+        variable rd_ptr_commit_v: integer range 0 to SLOTS-1;
     begin
         if rising_edge(clk) then
             if (reset = '0') then
-                -- Reset to FULL state (all but 0 physical registers free)
-                wr_ptr <= 1;
-                rd_ptr <= 1;
-                -- mem <= ( others => ( valid => '0', value => (others => '0')));
+                mem             <= init_mem;
+                wr_ptr          <= 0;
+                rd_ptr          <= 0;
+                rd_ptr_commit   <= 0;
+                count           <= SLOTS;
+                count_commit    <= SLOTS;
             else
+                count_v         := count;
+                count_commit_v  := count_commit;
+                rd_ptr_v        := rd_ptr;
+                rd_ptr_commit_v := rd_ptr_commit;
+
                 -- Push operation (return register to free list on commit)
-                if push = '1' and full_s = '0' and push_valid = '1' and mem(wr_ptr).valid = '0' then
-                    mem(wr_ptr).value <= push_data;
-                    mem(wr_ptr).valid <= '1';
-                    
-                    if(wr_ptr = DEPTH-1) then
-                        wr_ptr  <= 1;
-                    else
-                        wr_ptr <= wr_ptr + 1;
-                    end if;    
+                push_v := push = '1' and push_valid = '1' and count_commit < SLOTS;
+                if push_v then
+                    mem(wr_ptr)     <= push_data;
+                    wr_ptr          <= next_ptr(wr_ptr);
+                    count_v         := count_v + 1;
+                    count_commit_v  := count_commit_v + 1;
                 end if;
-                
-                -- Push operation for the commit version of the fifo
-                if push = '1' and full_s = '0' and push_valid = '1' and mem(wr_ptr).valid = '0' then
-                    mem_commit(wr_ptr).value <= push_data;
-                    mem_commit(wr_ptr).valid <= '1';
-                    
-                    if(wr_ptr = DEPTH-1) then
-                        wr_ptr  <= 1;
-                    else
-                        wr_ptr <= wr_ptr + 1;
-                    end if;    
-                end if;
-                
+
                 -- Pop operation (take free register for rename)
-                if pop = '1' and empty_s = '0' and mem(rd_ptr).valid = '1' then
-                    mem(rd_ptr).valid <= '0';
-                    rd_ptr <= (rd_ptr + 1) mod DEPTH;
-                    
-                    if(rd_ptr = DEPTH-1) then
-                        rd_ptr  <= 1;
-                    else
-                        rd_ptr <= rd_ptr + 1;
-                    end if;    
+                if pop = '1' and count > 0 then
+                    rd_ptr_v        := next_ptr(rd_ptr);
+                    count_v         := count_v - 1;
                 end if;
-                
-                if snapshot_i = '1' then
-                    mem_commit <= mem;
-                    if push = '1' and full_s = '0' and push_valid = '1' and mem(wr_ptr).valid = '0' then
-                        rd_ptr_commit   <= rd_ptr + 1;
-                    else
-                        rd_ptr_commit   <= rd_ptr;
-                    end if;
+
+                -- Commit of an instruction that took a register
+                if commit_pop = '1' then
+                    rd_ptr_commit_v := next_ptr(rd_ptr_commit);
+                    count_commit_v  := count_commit_v - 1;
                 end if;
-                
+
+                -- Missprediction: give back the registers of all flushed instructions
                 if flush_i = '1' then
-                    mem <= mem_commit;
-                    rd_ptr   <= rd_ptr_commit;
+                    rd_ptr_v        := rd_ptr_commit_v;
+                    count_v         := count_commit_v;
                 end if;
+
+                rd_ptr          <= rd_ptr_v;
+                rd_ptr_commit   <= rd_ptr_commit_v;
+                count           <= count_v;
+                count_commit    <= count_commit_v;
             end if;
         end if;
     end process;
-    
+
     -- Outputs
-    -- Synch read ?
-    pop_data <= mem(rd_ptr).value;
-    full_s   <= '1' when rd_ptr = wr_ptr and mem(wr_ptr).valid = '1' else '0';
-    full     <= full_s;
-    empty_s  <= '1' when rd_ptr = wr_ptr and mem(wr_ptr).valid = '0' else '0';
-    empty    <= empty_s;
-    
+    pop_data <= mem(rd_ptr);
+    empty    <= '1' when count = 0 else '0';
+    full     <= '1' when count = SLOTS else '0';
+
 end Behavioral;

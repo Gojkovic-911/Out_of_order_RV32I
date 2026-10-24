@@ -2,7 +2,7 @@ from playwright.sync_api import sync_playwright
 import time
 import sys
 
-def wait_for_completion(page, timeout=50000):
+def wait_for_completion(page, timeout=300000):
     """Wait for 'No more instructions to run!' text to appear."""
     print("Waiting for execution to complete...")
     try:
@@ -46,7 +46,7 @@ def run_interpreter(asm_file: str, out_regs: str):
         page.click('text=Run')
         
         # Wait for completion using the "No more instructions to run!" message
-        if not wait_for_completion(page, timeout=50000):
+        if not wait_for_completion(page, timeout=300000):
             print("Warning: Execution may not have completed successfully")
         
         # Small delay to ensure everything is stable

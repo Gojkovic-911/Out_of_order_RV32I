@@ -1,6 +1,7 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use work.alu_ops_pkg.all;
+use work.instr_types_pkg.all;
 
 entity LSU is
    generic (DATA_WIDTH : positive := 32;
@@ -38,7 +39,7 @@ begin
     
    
    -- Store instructions
-   process (lsu_subtype_i, data_mem_addr_i) is
+   process (lsu_subtype_i, data_mem_addr_i, data_mem_wdata_i) is
    begin
    
        data_mem_be_s    <= (others => '0'); 

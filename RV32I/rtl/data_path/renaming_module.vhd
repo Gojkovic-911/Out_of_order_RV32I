@@ -24,7 +24,6 @@ entity renaming_module is
             rename_rs1_used_i   : in  std_logic;
             rename_rs2_used_i   : in  std_logic;
             rd_we_i             : in  std_logic;
-            rename_snapshot_i   : in  std_logic;
             flush_i             : in  std_logic;
             rename_instr_valid_i: in  std_logic;
             
@@ -76,9 +75,6 @@ architecture Behavioral of renaming_module is
     -- ROB signals
     signal phys_ready_reg               : std_logic_vector(NUM_PHYS_REGS-1 downto 0);
     signal phys_ready_next              : std_logic_vector(NUM_PHYS_REGS-1 downto 0);
-    signal phys_ready_snap_next              : std_logic_vector(NUM_PHYS_REGS-1 downto 0);
-    
-    signal phys_ready_reg_commit      : std_logic_vector(NUM_PHYS_REGS-1 downto 0);
     
     -- WE signal
     signal rename_table_we_s : std_logic;
@@ -121,7 +117,11 @@ begin
             if reset = '0' then
                 rename_table_s <= (others => (others => '0'));
             elsif flush_i = '1' then
-                rename_table_s <= commit_rename_table_s;    
+                -- Commit table including this cycle's commit (JALR commits in the flush cycle)
+                rename_table_s <= commit_rename_table_s;
+                if rob_commit_valid_i = '1' and to_integer(unsigned(rob_commit_rd_arch_i)) /= 0 then
+                    rename_table_s(to_integer(unsigned(rob_commit_rd_arch_i))) <= rob_commit_rd_phys_i;
+                end if;
             elsif rename_table_we_s = '1' then
                 if(to_integer(unsigned(rd_arch_addr_i)) /= 0) then
                     rename_table_s(to_integer(unsigned(rd_arch_addr_i))) <= rd_phys_addr_s;
@@ -156,7 +156,8 @@ begin
          if (reset = '0')then
             phys_ready_reg <= std_logic_vector(to_unsigned(1, NUM_PHYS_REGS));
          elsif flush_i = '1' then
-            phys_ready_reg <= phys_ready_reg_commit;
+            -- Only committed mappings survive a flush and those are all written
+            phys_ready_reg <= (others => '1');
          else
             phys_ready_reg <= phys_ready_next;
          end if;
@@ -177,33 +178,6 @@ begin
                 phys_ready_next(i) <= '0';
             elsif (cdb_valid_i = '1' and to_integer(unsigned(cdb_rd_addr_i)) = i) then
                 phys_ready_next(i) <= '1';
-            end if;
-        end loop;
-    end process;
-    
-    
-    -- Commit version of the physical_ready_bits register
-    commit_physical_ready_bits_reg:
-    process (clk) is
-    begin
-        if (rising_edge(clk)) then
-            if (reset = '0')then
-                phys_ready_reg_commit <= (others => '0');
-            elsif rename_snapshot_i = '1' then
-                phys_ready_reg_commit <= phys_ready_next;
-            else
-                phys_ready_reg_commit <= phys_ready_snap_next;
-            end if;
-        end if;
-    end process; 
-    
-    commit_physical_ready_bits_next:
-    process(rob_commit_valid_i, rob_commit_rd_phys_i)
-    begin
-        phys_ready_snap_next <= phys_ready_reg_commit;
-        for i in 0 to NUM_PHYS_REGS-1 loop
-            if (rob_commit_valid_i = '1' and to_integer(unsigned(rob_commit_rd_phys_i)) = i) then
-                phys_ready_snap_next(i) <= '1';
             end if;
         end loop;
     end process;
@@ -254,7 +228,8 @@ begin
         rob_rename_rd_phys_o        <= (others => '0');
         rob_rename_prev_phys_o      <= (others => '0');
         
-        if(rd_we_i = '1' and rename_instr_valid_i = '1') then
+        -- x0 is never renamed (it would take a register that is never given back)
+        if(rd_we_i = '1' and rename_instr_valid_i = '1' and to_integer(unsigned(rd_arch_addr_i)) /= 0) then
             -- Rd: New physical address from free_list_fifo
             rd_phys_addr_s          <= pop_data_s;
             pop_s                   <= '1';
@@ -271,6 +246,7 @@ begin
     -- Push rob_commit_prev_phys_i to free_list_fifo IFF 
     -- 1) rob output is valid
     -- 2) its's an rd instruction
+    -- The same commit also moves the commit read pointer of the free list
     
     push_s <= '1' when (rob_commit_valid_i = '1' and rob_commit_rd_instr_i = '1') else
               '0';
@@ -287,7 +263,7 @@ begin
         push        => push_s,
         push_data   => rob_commit_prev_phys_i,
         pop         => pop_s,
-        snapshot_i  => rename_snapshot_i,
+        commit_pop  => push_s,
         flush_i     => flush_i,
         pop_data    => pop_data_s,
         empty       => empty_flag_s,

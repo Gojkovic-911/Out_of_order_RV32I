@@ -9,8 +9,7 @@ entity branch_predictor is
     );
     Port ( 
         fetch_intr_i    : in std_logic_vector(DATA_WIDTH-1 downto 0);
-        is_jump_o       : out std_logic;
-        is_spec_o       : out std_logic
+        is_jump_o       : out std_logic
     );
 end branch_predictor;
 
@@ -24,20 +23,14 @@ begin
     process(opcode) is
     begin
         is_jump_o    <= '0';
-        is_spec_o    <= '0';
         if opcode = OPCODE_BRANCH then
             -- BRANCH
             is_jump_o       <= '1';
-            is_spec_o       <= '1';
         
         elsif opcode = OPCODE_JAL then
             -- JAL
             is_jump_o       <= '1';
-
-        elsif opcode = OPCODE_JALR then
-            -- JALR
-            is_spec_o       <= '1';
-            
         end if;
+        -- JALR: not predicted, fall-through is flushed at commit
     end process;
 end Behavioral;

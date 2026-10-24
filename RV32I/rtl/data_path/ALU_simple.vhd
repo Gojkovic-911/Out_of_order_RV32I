@@ -8,12 +8,12 @@ ENTITY ALU IS
     GENERIC(
         WIDTH : NATURAL := 32);
     PORT(
-        a_i    : in STD_LOGIC_VECTOR(WIDTH-1 DOWNTO 0); --prvi operand
-        b_i    : in STD_LOGIC_VECTOR(WIDTH-1 DOWNTO 0); --drugi operand
-        op_i   : in STD_LOGIC_VECTOR(4 DOWNTO 0); --port za izbor operacije
-        res_o  : out STD_LOGIC_VECTOR(WIDTH-1 DOWNTO 0); --rezultat
-        zero_o : out STD_LOGIC; -- signal da je rezultat nula
-        of_o   : out STD_LOGIC); -- signal da je doslo do prekoracenja opsega
+        a_i    : in STD_LOGIC_VECTOR(WIDTH-1 DOWNTO 0); --first operand
+        b_i    : in STD_LOGIC_VECTOR(WIDTH-1 DOWNTO 0); --second operand
+        op_i   : in STD_LOGIC_VECTOR(4 DOWNTO 0); --operation select
+        res_o  : out STD_LOGIC_VECTOR(WIDTH-1 DOWNTO 0); --result
+        zero_o : out STD_LOGIC; -- result is zero
+        of_o   : out STD_LOGIC); -- overflow occurred
 END ALU;
 
 ARCHITECTURE behavioral OF ALU IS
@@ -123,11 +123,11 @@ begin
                  (others => '1') when others; 
     
     
-    -- Postavlja zero_o na 1 ukoliko je rezultat operacije 0
+    -- Zero flag
     zero_o <= '1' when res_s = std_logic_vector(to_unsigned(0,WIDTH)) else
              '0';
     
-    -- Prekoracenje se desava kada ulazi imaju isti znak, a izlaz razlicit
+    -- Overflow: same-sign inputs, sign flip
     of_o <= '1' when ((op_i="00011" and (a_i(WIDTH-1)=b_i(WIDTH-1)) and ((a_i(WIDTH-1) xor res_s(WIDTH-1))='1')) or (op_i="10011" and (a_i(WIDTH-1)=res_s(WIDTH-1)) and ((a_i(WIDTH-1) xor b_i(WIDTH-1))='1'))) else
            '0';
 
