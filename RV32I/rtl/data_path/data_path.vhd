@@ -5,41 +5,41 @@ use work.instr_types_pkg.all;
 
 entity data_path is
     generic (
-        DATA_WIDTH      : natural  := 32;   -- Data width
-        MEM_BYTES       : natural  := 4;    -- (DATA_WIDTH / 8);
+        DATA_WIDTH      : natural  := 32;
+        MEM_BYTES       : natural  := 4;
         ARCH_ADDR_BITS  : natural  := 5;
-        NUM_PHYS_REGS   : natural  := 64;   -- Number of physiscal registers
-        PHYS_ADDR_BITS  : natural  := 6;    -- log2(NUM_PHYS_REGS)
-        ROB_DEPTH       : natural  := 64;   -- ROB depth of entries
+        NUM_PHYS_REGS   : natural  := 64;
+        PHYS_ADDR_BITS  : natural  := 6;
+        ROB_DEPTH       : natural  := 64;
         ROB_ADDR_BITS   : natural  := 6;
-        IQ_DEPTH        : natural  := 16;   -- Instruction queue depth
-        IQ_BITS         : natural  := 4;    -- log2(IQ_DEPTH)
+        IQ_DEPTH        : natural  := 16;
+        IQ_BITS         : natural  := 4;
         RS_DEPTH        : natural  := 16;
         RS_BITS         : natural  := 4;
-        LSQ_DEPTH       : natural  := 16;   -- Load/store queue depth
-        LSQ_BITS        : natural  := 4     -- log2(LSQ_DEPTH)
+        LSQ_DEPTH       : natural  := 16;
+        LSQ_BITS        : natural  := 4
         );
     
     port(
         clk                     : in  std_logic;
         reset                   : in  std_logic;
         
-        -- ********* Instruction Memory Interface (read-only) *********
-        instr_mem_addr_o        : out std_logic_vector(DATA_WIDTH-1 downto 0);  -- Address of instruction
-        instr_mem_data_i        : in  std_logic_vector(DATA_WIDTH-1 downto 0);  -- Instruction read from memory
-        instruction_o           : out std_logic_vector(DATA_WIDTH-1 downto 0);  -- Forwarded instruction
+        -- Instruction memory port
+        instr_mem_addr_o        : out std_logic_vector(DATA_WIDTH-1 downto 0);
+        instr_mem_data_i        : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+        instruction_o           : out std_logic_vector(DATA_WIDTH-1 downto 0);
         
-        -- ********* Data Memory Interface (read/write, valid/ready request + response) *********
-        data_mem_req_o          : out std_logic;                                -- Request valid
-        data_mem_ready_i        : in  std_logic;                                -- Request accepted
-        data_mem_we_o           : out std_logic;                                -- Store
-        data_mem_rsp_i          : in  std_logic;                                -- Response (read data / write done)
-        data_mem_addr_o         : out std_logic_vector(DATA_WIDTH-1 downto 0);  -- Address for data access
-        data_mem_wdata_o        : out std_logic_vector(DATA_WIDTH-1 downto 0);  -- Data to be written to memory
-        data_mem_rdata_i        : in  std_logic_vector(DATA_WIDTH-1 downto 0);  -- Data read from memory
-        data_mem_be_o           : out std_logic_vector(MEM_BYTES-1 downto 0);   -- Byte enable (load/store strobe)
+        -- Data memory port
+        data_mem_req_o          : out std_logic;
+        data_mem_ready_i        : in  std_logic;
+        data_mem_we_o           : out std_logic;
+        data_mem_rsp_i          : in  std_logic;
+        data_mem_addr_o         : out std_logic_vector(DATA_WIDTH-1 downto 0);
+        data_mem_wdata_o        : out std_logic_vector(DATA_WIDTH-1 downto 0);
+        data_mem_rdata_i        : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+        data_mem_be_o           : out std_logic_vector(MEM_BYTES-1 downto 0);
         
-        -- ********* Control signals ************************
+        -- Control signals
         decode_instr_format_i   : in  std_logic_vector(2 downto 0);
         fetch_is_jump_i        : in  std_logic;
         
@@ -50,34 +50,33 @@ entity data_path is
         dispatch_instr_type_i    : in std_logic_vector(3 downto 0);
         dispatch_instr_subtype_i : in std_logic_vector(4 downto 0);
      
-        stall_if_i              : in std_logic;     -- Stall fetch stage
-        stall_id_i              : in std_logic;     -- Stall decode stage
-        stall_rn_i              : in std_logic;     -- Stall rename stage
-        stall_is_i              : in std_logic;     -- Stall dispatch/issue stage
-        stall_ex_i              : in std_logic;     -- Stall execute stage
-        stall_iq_is_i           : in std_logic;     -- Stall issue from IQ
+        stall_if_i              : in std_logic;
+        stall_id_i              : in std_logic;
+        stall_rn_i              : in std_logic;
+        stall_is_i              : in std_logic;
+        stall_ex_i              : in std_logic;
+        stall_iq_is_i           : in std_logic;
         
-        -- if_id_flush_i           : in std_logic;
         pc_next_sel_i           : in std_logic;
         flush_pipe_i            : in std_logic;
         if_id_flush_i           : in std_logic;
         
-        -- *********** Status signals ***********************
-        rob_full_o              : out std_logic;    -- ROB full
-        free_list_fifo_empty_o  : out std_logic;    -- No free registers in fifo
-        iq_full_o               : out std_logic;    -- IQ full
+        -- Status signals
+        rob_full_o              : out std_logic;
+        free_list_fifo_empty_o  : out std_logic;
+        iq_full_o               : out std_logic;
         
         misspredict_o           : out std_logic;
         
-        rs_full_o               : out std_logic;   -- reservation stations full
-        lsq_full_o              : out std_logic    -- LSQ full (mem instr in rename)
+        rs_full_o               : out std_logic;
+        lsq_full_o              : out std_logic
         );
 
 end entity;
 
 architecture Behavioral of data_path is
 
-    -- Debug
+    -- Debug outputs
     signal rename_instruction           : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal dispatch_instruction         : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal issue_instruction            : std_logic_vector(DATA_WIDTH-1 downto 0);
@@ -85,10 +84,10 @@ architecture Behavioral of data_path is
     
     -- Fetch signals
     signal fetch_instruction_s          : std_logic_vector(DATA_WIDTH-1 downto 0);
-    signal fetch_instr_valid_s          : std_logic;    -- instruction on the memory output is valid
-    signal fetch_pc_s                   : std_logic_vector(DATA_WIDTH-1 downto 0);  -- its address
-    signal fetch_addr_s                 : std_logic_vector(DATA_WIDTH-1 downto 0);  -- address sent now
-    signal fetch_ok_s                   : std_logic;    -- valid and not killed by a redirect
+    signal fetch_instr_valid_s          : std_logic;
+    signal fetch_pc_s                   : std_logic_vector(DATA_WIDTH-1 downto 0);
+    signal fetch_addr_s                 : std_logic_vector(DATA_WIDTH-1 downto 0);
+    signal fetch_ok_s                   : std_logic;
     signal jump_redirect_s              : std_logic;
     signal pc_reg_s                     : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal pc_revert_addr_s             : std_logic_vector(DATA_WIDTH-1 downto 0);
@@ -100,7 +99,7 @@ architecture Behavioral of data_path is
     signal decode_instr_valid_s         : std_logic;
     signal decode_is_jump_s             : std_logic;
     
-    -- Renaming signals
+    -- Rename signals
     signal rename_rs1_arch_addr_s       : std_logic_vector(ARCH_ADDR_BITS-1 downto 0);
     signal rename_rs2_arch_addr_s       : std_logic_vector(ARCH_ADDR_BITS-1 downto 0);
     signal rename_rd_arch_addr_s        : std_logic_vector(ARCH_ADDR_BITS-1 downto 0);
@@ -118,7 +117,6 @@ architecture Behavioral of data_path is
     signal rename_pc_reg_s              : std_logic_vector(DATA_WIDTH-1 downto 0);
     
     signal free_list_fifo_empty_s       : std_logic;
-
 
     -- ROB signals
     signal rob_rename_rd_arch_s         : std_logic_vector(ARCH_ADDR_BITS-1 downto 0);
@@ -152,8 +150,7 @@ architecture Behavioral of data_path is
     signal rob_branch_addr_valid_s      : std_logic;
     signal rob_branch_addr_s            : std_logic_vector(DATA_WIDTH-1 downto 0);
     
-    
-    -- Dispatch/Issue signals
+    -- Dispatch/issue signals
     signal dispatch_valid_s             : std_logic;
 
     signal dispatch_rs1_addr_s          : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
@@ -187,6 +184,25 @@ architecture Behavioral of data_path is
     signal issue_valid_s                : std_logic;
     
     -- Execute signals
+    signal ex_valid_s                   : std_logic;
+    signal alu_valid_s                  : std_logic;
+    signal alu_full_s                   : std_logic;
+    signal alu_op_a_s                   : std_logic_vector(DATA_WIDTH-1 downto 0);
+    signal alu_op_b_s                   : std_logic_vector(DATA_WIDTH-1 downto 0);
+    signal branch_valid_s               : std_logic;
+    signal branch_full_s                : std_logic;
+    signal lsq_fill_valid_s             : std_logic;
+    signal lsq_fill_addr_s              : std_logic_vector(DATA_WIDTH-1 downto 0);
+    signal alu_cdb_req_s                : std_logic;
+    signal alu_cdb_grant_s              : std_logic;
+    signal alu_cdb_data_s               : std_logic_vector(DATA_WIDTH-1 downto 0);
+    signal alu_cdb_rd_addr_s            : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
+    signal alu_cdb_rob_idx_s            : std_logic_vector(ROB_ADDR_BITS-1 downto 0);
+    signal lsq_cdb_req_s                : std_logic;
+    signal lsq_cdb_grant_s              : std_logic;
+    signal lsq_cdb_data_s               : std_logic_vector(DATA_WIDTH-1 downto 0);
+    signal lsq_cdb_rd_addr_s            : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
+    signal lsq_cdb_rob_idx_s            : std_logic_vector(ROB_ADDR_BITS-1 downto 0);
     signal execute_valid_s         : std_logic;
     signal execute_rs1_data_s      : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal execute_rs2_data_s      : std_logic_vector(DATA_WIDTH-1 downto 0);
@@ -223,21 +239,17 @@ architecture Behavioral of data_path is
     
 begin
     
-    -- Instruction memory
+    -- Instruction memory port
     fetch_instruction_s <= instr_mem_data_i;
 
-    -- Control signals
     instruction_o       <= fetch_instruction_s when fetch_ok_s = '1' else (others => '0');
     rob_full_o          <= rob_full_s;
     
-    -- Physical registers bank
-    -- Synchronous write
+    -- Physical register file
     phys_regs_write:process(clk)
     begin
         if rising_edge(clk) then
-            if(reset = '0') then
-                phys_regs_s <= (others => (others => '0'));
-            elsif cdb_valid_s = '1' then -- cdb_valid ?
+            if cdb_valid_s = '1' then
                 if(to_integer(unsigned(cdb_rd_addr_s)) /= 0) then
                     phys_regs_s(to_integer(unsigned(cdb_rd_addr_s))) <= cdb_data_s;
                 end if;
@@ -270,25 +282,20 @@ begin
         end if;
     end process;
     
-    --*********** INSTRUCTION FETCH STAGE *********************
-    -- Synchronous instruction memory: the word for the address sent in one
-    -- cycle shows up on the memory output in the next one.
-    -- fetch_pc_s / fetch_instr_valid_s describe the word on the output now.
+    -- Fetch stage
     
-    -- Predicted taken BRANCH / JAL in decode, done once: when it leaves decode
     jump_redirect_s <= decode_is_jump_s and (not stall_id_i);
     
-    -- The word on the output is wrong path when decode redirects this cycle
     fetch_ok_s      <= fetch_instr_valid_s and (not jump_redirect_s);
     
-    -- Address sent to the instruction memory
+    -- Next fetch address
     fetch_addr:process (flush_pipe_i, pc_next_sel_i, pc_revert_addr_s, jump_redirect_s, decode_pc_reg_s, decode_imm_s,
                         stall_if_i, fetch_pc_s, pc_reg_s) begin
-        if (flush_pipe_i = '1' and pc_next_sel_i = '1') then    -- misprediction at commit
+        if (flush_pipe_i = '1' and pc_next_sel_i = '1') then
             fetch_addr_s <= pc_revert_addr_s;
-        elsif (jump_redirect_s = '1') then                      -- BRANCH and JAL
+        elsif (jump_redirect_s = '1') then
             fetch_addr_s <= std_logic_vector(unsigned(decode_pc_reg_s) + unsigned(decode_imm_s));
-        elsif (stall_if_i = '1') then                           -- same word again, the output holds
+        elsif (stall_if_i = '1') then
             fetch_addr_s <= fetch_pc_s;
         else
             fetch_addr_s <= pc_reg_s;
@@ -313,14 +320,11 @@ begin
         end if;
     end process;
     
-    --*********************************************************
-    
-    --*********** INSTRUCTION DECODE STAGE ********************   
-    --IF/ID register
+    -- Decode stage, IF/ID register
     IF_ID : process (clk) is
     begin
         if rising_edge(clk) then
-            if reset = '0' or flush_pipe_i = '1' then --  or if_id_flush_i = '1' 
+            if reset = '0' or flush_pipe_i = '1' then
                 decode_is_jump_s        <= '0';
                 decode_instruction_s    <= (others => '0');
                 decode_pc_reg_s         <= (others => '0');
@@ -336,7 +340,7 @@ begin
                     else  
                         decode_instr_valid_s <= '1';
                     end if;
-                else                                -- bubble (wrong path word or no word yet)
+                else
                     decode_is_jump_s        <= '0';
                     decode_instruction_s    <= (others => '0');
                     decode_instr_valid_s    <= '0';
@@ -345,7 +349,7 @@ begin
         end if;
     end process;
     
-    -- Module for extracting/extending the immediate
+    -- Immediate extraction
     immediate_1 : entity work.immediate
          port map (
             instr_i         => decode_instruction_s,
@@ -353,10 +357,7 @@ begin
             imm_extended_o  => decode_imm_s
             );
     
-    --********************************************************
-    
-    --*********** REGISTER RENAMING STAGE ********************
-    --ID/RN register
+    -- Rename stage, ID/RN register
     ID_RN : process (clk) is
     begin
         if rising_edge(clk) then
@@ -403,7 +404,7 @@ begin
             rd_we_i                 => rename_rd_we_i,
             flush_i                 => flush_pipe_i,
             
-            rename_instr_valid_i    => rename_instr_valid_s and (not stall_rn_i), -- ?? Can I have a scenario where i use stall and not instr_valid ..
+            rename_instr_valid_i    => rename_instr_valid_s and (not stall_rn_i),
     
             cdb_valid_i             => cdb_valid_s, 
             cdb_rd_addr_i           => cdb_rd_addr_s,
@@ -431,11 +432,8 @@ begin
         
     free_list_fifo_empty_o  <= free_list_fifo_empty_s;
     
-    --********************************************************
+    -- Issue stage, RN/IS register
     
-    --***************** DISPATCH/ISSUE STAGE **************************
-    
-    --RN/IS register
     process(clk)
     begin
         if rising_edge(clk) then
@@ -471,7 +469,7 @@ begin
                 dispatch_lsq_idx_s      <= lsq_tail_idx_s;
                 dispatch_instruction    <= rename_instruction;
             else
-                -- Stalled (IQ full): keep snooping the cdb, a tag published now is not seen again
+                -- Stalled: keep snooping CDB
                 if (cdb_valid_s = '1' and cdb_rd_addr_s = dispatch_rs1_addr_s) then
                     dispatch_rs1_ready_s    <= '1';
                 end if;
@@ -543,10 +541,7 @@ begin
             iq_full_o                => iq_full_o           
         );
 
-    --********************************************************
-    
-    --******************** EXECUTE STAGE *********************
-    -- ISSUE/EX register
+    -- Execute stage, IS/EX register
     process (clk)
     begin
         if (rising_edge(clk)) then
@@ -587,10 +582,8 @@ begin
         end if;
     end process;
     
-    -- Generate the jump addr if jump/branch instruction
-    -- Should be one adder
+    -- Jump target address
     generate_rob_jump_addr: 
-    -- Only for a valid instruction: IS/EX keeps the type and rob_idx of the last issued one
     process(execute_valid_s, execute_instr_type_s, execute_rs1_data_s, execute_pc_reg_s, execute_imm_s, execute_rob_idx_s)
     begin
         rob_branch_addr_valid_s <= '0';
@@ -601,31 +594,122 @@ begin
             null;
         elsif (execute_instr_type_s = JALR) then
             rob_branch_addr_valid_s <= '1';
-            rob_branch_addr_s <= std_logic_vector(unsigned(execute_rs1_data_s) + unsigned(execute_imm_s)) and x"FFFFFFFE";  -- target bit 0 cleared
+            rob_branch_addr_s <= std_logic_vector(unsigned(execute_rs1_data_s) + unsigned(execute_imm_s)) and x"FFFFFFFE";
         elsif (execute_instr_type_s = BRANCH) then
             rob_branch_addr_valid_s <= '1';
             rob_branch_addr_s <= std_logic_vector(unsigned(execute_pc_reg_s) + to_unsigned(4, DATA_WIDTH));
         end if;
     end process;
     
-    -- LSQ entry allocated in rename, in program order (same condition as the ROB entry)
+    -- LSQ allocation at rename
     rename_is_mem_s     <= '1' when (rename_instruction(6 downto 0) = OPCODE_LOAD or rename_instruction(6 downto 0) = OPCODE_STORE) else '0';
     rename_is_store_s   <= '1' when rename_instruction(6 downto 0) = OPCODE_STORE else '0';
     lsq_alloc_valid_s   <= rename_instr_valid_s and rename_is_mem_s and (not stall_rn_i) and (not flush_pipe_i);
     
-    -- Stall rename only if the instruction there needs an LSQ entry
     lsq_full_o          <= lsq_full_s and rename_is_mem_s and rename_instr_valid_s;
     
-    -- RS full only matters for a valid instruction in IS/EX
     rs_full_o <= execute_rs_full_s and execute_valid_s;
     
-    execute_inst : entity work.execute_module
+    ex_valid_s <= execute_valid_s and (not stall_ex_i) and (not flush_pipe_i);
+
+    -- IS/EX steering to units
+    u_ex_router : entity work.ex_router
+        generic map (
+            DATA_WIDTH      => DATA_WIDTH,
+            ROB_ADDR_BITS   => ROB_ADDR_BITS
+        )
+        port map (
+            valid_i             => ex_valid_s,
+            instr_type_i        => execute_instr_type_s,
+            rs1_data_i          => execute_rs1_data_s,
+            rs2_data_i          => execute_rs2_data_s,
+            imm_i               => execute_imm_s,
+            pc_i                => execute_pc_reg_s,
+            rob_idx_i           => execute_rob_idx_s,
+            alu_full_i          => alu_full_s,
+            branch_full_i       => branch_full_s,
+            rs_full_o           => execute_rs_full_s,
+            alu_valid_o         => alu_valid_s,
+            alu_op_a_o          => alu_op_a_s,
+            alu_op_b_o          => alu_op_b_s,
+            branch_valid_o      => branch_valid_s,
+            lsq_fill_valid_o    => lsq_fill_valid_s,
+            lsq_fill_addr_o     => lsq_fill_addr_s,
+            store_done_valid_o  => store_done_valid_s,
+            store_done_idx_o    => store_done_idx_s
+        );
+
+    u_alu_unit : entity work.alu_unit
         generic map (
             DATA_WIDTH      => DATA_WIDTH,
             PHYS_ADDR_BITS  => PHYS_ADDR_BITS,
             RS_DEPTH        => RS_DEPTH,
             RS_BITS         => RS_BITS,
+            ROB_ADDR_BITS   => ROB_ADDR_BITS
+        )
+        port map (
+            clk             => clk,
+            reset           => reset,
+            valid_i         => alu_valid_s,
+            rs1_addr_i      => execute_rs1_addr_s,
+            rs2_addr_i      => execute_rs2_addr_s,
+            rs1_ready_i     => execute_rs1_ready_s,
+            rs2_ready_i     => execute_rs2_ready_s,
+            op_a_i          => alu_op_a_s,
+            op_b_i          => alu_op_b_s,
+            rd_addr_i       => execute_rd_addr_s,
+            subtype_i       => execute_instr_subtype_s,
+            rob_idx_i       => execute_rob_idx_s,
+            instruction_i   => execute_instruction,
+            full_o          => alu_full_s,
+            flush_i         => flush_pipe_i,
+            cdb_valid_i     => cdb_valid_s,
+            cdb_addr_i      => cdb_rd_addr_s,
+            cdb_data_i      => cdb_data_s,
+            cdb_req_o       => alu_cdb_req_s,
+            cdb_grant_i     => alu_cdb_grant_s,
+            cdb_data_o      => alu_cdb_data_s,
+            cdb_rd_addr_o   => alu_cdb_rd_addr_s,
+            cdb_rob_idx_o   => alu_cdb_rob_idx_s
+        );
+
+    u_branch_unit : entity work.branch_unit
+        generic map (
+            DATA_WIDTH      => DATA_WIDTH,
+            PHYS_ADDR_BITS  => PHYS_ADDR_BITS,
+            RS_DEPTH        => RS_DEPTH,
+            RS_BITS         => RS_BITS,
+            ROB_ADDR_BITS   => ROB_ADDR_BITS
+        )
+        port map (
+            clk             => clk,
+            reset           => reset,
+            valid_i         => branch_valid_s,
+            rs1_addr_i      => execute_rs1_addr_s,
+            rs2_addr_i      => execute_rs2_addr_s,
+            rs1_ready_i     => execute_rs1_ready_s,
+            rs2_ready_i     => execute_rs2_ready_s,
+            rs1_data_i      => execute_rs1_data_s,
+            rs2_data_i      => execute_rs2_data_s,
+            subtype_i       => execute_instr_subtype_s,
+            rob_idx_i       => execute_rob_idx_s,
+            instruction_i   => execute_instruction,
+            full_o          => branch_full_s,
+            flush_i         => flush_pipe_i,
+            cdb_valid_i     => cdb_valid_s,
+            cdb_addr_i      => cdb_rd_addr_s,
+            cdb_data_i      => cdb_data_s,
+            taken_valid_o   => branch_taken_valid_s,
+            taken_o         => branch_taken_s,
+            taken_idx_o     => branch_taken_idx_s
+        );
+
+    -- LSQ between rename, AGU, CDB, memory
+    u_lsq : entity work.LSQ
+        generic map (
+            DATA_WIDTH      => DATA_WIDTH,
             MEM_BYTES       => MEM_BYTES,
+            PHYS_ADDR_BITS  => PHYS_ADDR_BITS,
             ROB_ADDR_BITS   => ROB_ADDR_BITS,
             LSQ_DEPTH       => LSQ_DEPTH,
             LSQ_BITS        => LSQ_BITS
@@ -633,63 +717,62 @@ begin
         port map (
             clk                 => clk,
             reset               => reset,
-            
-            execute_valid_i         => execute_valid_s and (not stall_ex_i) and (not flush_pipe_i),
-            
-            execute_rs1_addr_i      => execute_rs1_addr_s,
-            execute_rs2_addr_i      => execute_rs2_addr_s,
-            execute_rs1_data_i      => execute_rs1_data_s,
-            execute_rs2_data_i      => execute_rs2_data_s,
-            execute_rd_addr_i       => execute_rd_addr_s,
-            execute_rob_idx_i       => execute_rob_idx_s,
-            execute_lsq_idx_i       => execute_lsq_idx_s,
-            
-            execute_instr_type_i    => execute_instr_type_s,
-            execute_instr_subtype_i => execute_instr_subtype_s,
-            flush_pipe_i            => flush_pipe_i,
-            
-            execute_rs1_ready_i     => execute_rs1_ready_s,
-            execute_rs2_ready_i     => execute_rs2_ready_s,
-            
-            execute_imm_i           => execute_imm_s,
-            
-            execute_pc_reg_i        => execute_pc_reg_s,
-            
-            rs_full_o               => execute_rs_full_s,
-            branch_taken_o          => branch_taken_s,
-            branch_taken_valid_o    => branch_taken_valid_s,
-            branch_taken_idx_o      => branch_taken_idx_s,
-            
-            cdb_valid_o             => cdb_valid_s,
-            cdb_data_o              => cdb_data_s,
-            cdb_addr_o              => cdb_rd_addr_s,
-            wb_rob_idx_o            => wb_rob_idx_s,
-            
-            data_mem_req_o          => data_mem_req_o,
-            data_mem_ready_i        => data_mem_ready_i,
-            data_mem_we_o           => data_mem_we_o,
-            data_mem_rsp_i          => data_mem_rsp_i,
-            data_mem_addr_o         => data_mem_addr_o,
-            data_mem_wdata_o        => data_mem_wdata_o,
-            data_mem_rdata_i        => data_mem_rdata_i,
-            data_mem_be_o           => data_mem_be_o,
-            
-            lsq_alloc_valid_i       => lsq_alloc_valid_s,
-            lsq_alloc_is_store_i    => rename_is_store_s,
-            lsq_tail_idx_o          => lsq_tail_idx_s,
-            lsq_full_o              => lsq_full_s,
-            
-            store_done_valid_o      => store_done_valid_s,
-            store_done_idx_o        => store_done_idx_s,
-            commit_store_i          => rob_commit_store_s,
-            
-            instruction             => execute_instruction
+            alloc_valid_i       => lsq_alloc_valid_s,
+            alloc_is_store_i    => rename_is_store_s,
+            lsq_tail_idx_o      => lsq_tail_idx_s,
+            lsq_full_o          => lsq_full_s,
+            fill_valid_i        => lsq_fill_valid_s,
+            fill_idx_i          => execute_lsq_idx_s,
+            fill_addr_i         => lsq_fill_addr_s,
+            fill_wdata_i        => execute_rs2_data_s,
+            fill_subtype_i      => execute_instr_subtype_s,
+            fill_rd_addr_i      => execute_rd_addr_s,
+            fill_rob_idx_i      => execute_rob_idx_s,
+            commit_store_i      => rob_commit_store_s,
+            flush_pipe_i        => flush_pipe_i,
+            cdb_req_o           => lsq_cdb_req_s,
+            cdb_grant_i         => lsq_cdb_grant_s,
+            cdb_data_o          => lsq_cdb_data_s,
+            cdb_rd_addr_o       => lsq_cdb_rd_addr_s,
+            cdb_rob_idx_o       => lsq_cdb_rob_idx_s,
+            data_mem_req_o      => data_mem_req_o,
+            data_mem_ready_i    => data_mem_ready_i,
+            data_mem_we_o       => data_mem_we_o,
+            data_mem_addr_o     => data_mem_addr_o,
+            data_mem_wdata_o    => data_mem_wdata_o,
+            data_mem_be_o       => data_mem_be_o,
+            data_mem_rsp_i      => data_mem_rsp_i,
+            data_mem_rdata_i    => data_mem_rdata_i
         );
-    
-    --********************************************************
-    
-    --******************** COMMIT STAGE *********************
-    -- ROB
+
+    -- CDB from ALU and LSQ
+    u_cdb : entity work.cdb
+        generic map (
+            DATA_WIDTH      => DATA_WIDTH,
+            PHYS_ADDR_BITS  => PHYS_ADDR_BITS,
+            ROB_ADDR_BITS   => ROB_ADDR_BITS
+        )
+        port map (
+            clk             => clk,
+            reset           => reset,
+            flush_i         => flush_pipe_i,
+            alu_req_i       => alu_cdb_req_s,
+            alu_grant_o     => alu_cdb_grant_s,
+            alu_data_i      => alu_cdb_data_s,
+            alu_rd_addr_i   => alu_cdb_rd_addr_s,
+            alu_rob_idx_i   => alu_cdb_rob_idx_s,
+            lsq_req_i       => lsq_cdb_req_s,
+            lsq_grant_o     => lsq_cdb_grant_s,
+            lsq_data_i      => lsq_cdb_data_s,
+            lsq_rd_addr_i   => lsq_cdb_rd_addr_s,
+            lsq_rob_idx_i   => lsq_cdb_rob_idx_s,
+            cdb_valid_o     => cdb_valid_s,
+            cdb_data_o      => cdb_data_s,
+            cdb_addr_o      => cdb_rd_addr_s,
+            cdb_rob_idx_o   => wb_rob_idx_s
+        );
+
+    -- Commit stage, ROB
     u_rob : entity work.ROB
         generic map (
             DATA_WIDTH      => DATA_WIDTH,
@@ -703,7 +786,7 @@ begin
             clk                     => clk,
             reset                   => reset,
             
-            -- Rename
+            -- Rename ports
             rename_instr_valid_i    => rename_instr_valid_s and (not stall_rn_i) and (not flush_pipe_i),   
             
             rename_rd_arch_i        => rob_rename_rd_arch_s,   
@@ -714,14 +797,13 @@ begin
             rename_is_store_i       => rename_is_store_s,
             rename_instruction_i    => rename_instruction,
             
-            -- WB
+            -- Write-back and branch ports
             wb_valid_i              => cdb_valid_s,
             wb_rob_idx_i            => wb_rob_idx_s,
             
             store_done_valid_i      => store_done_valid_s,
             store_done_idx_i        => store_done_idx_s,
             
-            -- Branch addr port
             branch_addr_i           => rob_branch_addr_s,
             branch_addr_valid_i     => rob_branch_addr_valid_s,
             branch_addr_tag_i       => rob_branch_idx_s,
@@ -730,7 +812,7 @@ begin
             branch_taken_valid_i    => branch_taken_valid_s,
             branch_taken_idx_i      => branch_taken_idx_s,
             
-            -- Commit
+            -- Commit ports
             commit_valid_o          => rob_commit_valid_s,
             commit_rd_arch_o        => rob_commit_rd_arch_s,
             commit_rd_phys_o        => rob_commit_rd_phys_s,
@@ -745,5 +827,4 @@ begin
             rob_empty_o             => rob_empty_s
         );
     
-    --********************************************************
 end architecture;

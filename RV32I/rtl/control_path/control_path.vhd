@@ -12,24 +12,23 @@ entity control_path is
         clk                 : in  std_logic;
         reset               : in  std_logic;
         
-        -- Instruction from data path
         instruction_i           : in  std_logic_vector (31 downto 0);
         
-        -- ***************** Control inteface ****************************
-        instr_format_o          : out std_logic_vector(2 downto 0); -- Immediate 
+        -- Control interface
+        instr_format_o          : out std_logic_vector(2 downto 0);
         
         fetch_is_jump_o        : out std_logic;
 
-        rename_rd_we_o          : out std_logic;    -- Rd used
-        rename_rs1_used_o       : out std_logic;    -- rs1 used
-        rename_rs2_used_o       : out std_logic;    -- rs2 used
+        rename_rd_we_o          : out std_logic;
+        rename_rs1_used_o       : out std_logic;
+        rename_rs2_used_o       : out std_logic;
         
         pc_next_sel_o           : out std_logic;
         
-        dispatch_instr_type_o    : out std_logic_vector(3 downto 0);    -- needed for execution
-        dispatch_instr_subtype_o : out std_logic_vector(4 downto 0);    -- needed for execution
+        dispatch_instr_type_o    : out std_logic_vector(3 downto 0);
+        dispatch_instr_subtype_o : out std_logic_vector(4 downto 0);
         
-        -- stall signals
+        -- Pipeline stall signals
         stall_if_o              : out std_logic;
         stall_id_o              : out std_logic;
         stall_rn_o              : out std_logic;
@@ -39,7 +38,7 @@ entity control_path is
         flush_pipe_o            : out std_logic;
         if_id_flush_o           : out std_logic;
         
-        -- ****************** Status interface **************************** 
+        -- Status from data path
         rob_full_i              : in std_logic;
         free_list_fifo_empty_i  : in std_logic;
         iq_full_i               : in std_logic;
@@ -52,7 +51,7 @@ end entity;
     
 architecture behavioral of control_path is
 
-    -- Decode signals
+    -- Decode stage signals
     signal decode_rd_we_s        : std_logic;
     signal decode_rs1_used_s     : std_logic;
     signal decode_rs2_used_s     : std_logic;
@@ -65,7 +64,7 @@ architecture behavioral of control_path is
     signal decode_funct3_s       : std_logic_vector(2 downto 0);
     signal decode_funct7_s       : std_logic_vector(6 downto 0);
     
-    -- Rename signals
+    -- Rename stage signals
     signal rename_rd_we_s        : std_logic;
     signal rename_rs1_used_s     : std_logic;
     signal rename_rs2_used_s     : std_logic;
@@ -102,7 +101,7 @@ begin
             is_jump_o       => fetch_is_jump_o
         );
         
-    --IF/ID register
+    -- IF/ID register
     IF_ID : process (clk) is
     begin
         if rising_edge(clk) then
@@ -114,7 +113,7 @@ begin
         end if;
     end process;
         
-    -- ID stage
+    -- Decode stage
     u_ctrl_dec: entity work.ctrl_dec
         port map (
             instr_i         => decode_instr_s,
@@ -131,9 +130,6 @@ begin
             funct7_o        => decode_funct7_s
         );
     
-    -- if_id_flush_o <= '1' when decode_instr_type_s = BRANCH or decode_instr_type_s = JAL else '0';
-    
-    -- RN stage
     -- ID/RN register
     ID_RN : process(clk) is
     begin
@@ -162,8 +158,6 @@ begin
     rename_rs1_used_o   <= rename_rs1_used_s;
     rename_rs2_used_o   <= rename_rs2_used_s;
     
-    
-    -- Dispatch / Issue stage
     -- RN/IS register
     RN_IS : process(clk) is
     begin
@@ -207,14 +201,13 @@ begin
                          BGEU   when (dipatch_instr_type_s = BRANCH and dipatch_funct3_s = "111") else
                          NONE_B;
     
-    -- jal jalr ?
     dispatch_instr_type_o     <= dipatch_instr_type_s;
     dispatch_instr_subtype_o <= alu_op_s         when (dipatch_instr_type_s = R_TYPE or dipatch_instr_type_s = I_TYPE or dipatch_instr_type_s = LUI or dipatch_instr_type_s = AUIPC or dipatch_instr_type_s = JAL or dipatch_instr_type_s = JALR) else
                                 mem_subtype_s    when (dipatch_instr_type_s = LOAD   or dipatch_instr_type_s = STORE) else
                                 branch_subtype_s when  dipatch_instr_type_s = BRANCH else
                                 NONE_L;
     
-    -- Generate stall signals
+    -- Stall generation
     stall:process (rob_full_i, free_list_fifo_empty_i, rename_rd_we_s, iq_full_i, rs_full_i, lsq_full_i) is
     begin
         stall_if_o      <= '0';
@@ -224,15 +217,13 @@ begin
         stall_ex_s      <= '0';
         stall_iq_is_o   <= '0';
         
-        -- ROB is full OR (free_list_fifo is empty AND there's an rd instruction in rename stage)
-        -- OR LSQ is full AND there's a load/store in rename stage
         if(rob_full_i = '1' or (free_list_fifo_empty_i = '1' and rename_rd_we_s = '1') or lsq_full_i = '1') then
             stall_if_o <= '1';
             stall_id_s <= '1';
             stall_rn_s <= '1';
         end if;
         
-        -- IQ is full
+        -- Issue stage stalls
         if(iq_full_i = '1') then
             stall_if_o <= '1';
             stall_id_s <= '1';
@@ -240,13 +231,10 @@ begin
             stall_is_s <= '1';
         end if;          
         
-        -- Reservation station(s) are full
-        -- Only block the issue from IQ and ex stage
         if(rs_full_i = '1') then
             stall_ex_s    <= '1';
             stall_iq_is_o <= '1';
         end if;
-        
         
     end process;
     
@@ -265,6 +253,4 @@ begin
         end if;
     end process;
     
-    
 end architecture;
-

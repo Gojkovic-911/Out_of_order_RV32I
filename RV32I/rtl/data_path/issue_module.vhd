@@ -39,18 +39,18 @@ entity issue_module is
         stall_is_i               : in std_logic;
         flush_pipe_i             : in std_logic;
         
-        issue_valid_o            : out std_logic; -- if found
-        issue_rs1_addr_o         : out std_logic_vector(PHYS_ADDR_BITS-1 downto 0);    -- rs1 addr
-        issue_rs2_addr_o         : out std_logic_vector(PHYS_ADDR_BITS-1 downto 0);    -- rs2 addr
-        issue_rd_addr_o          : out std_logic_vector(PHYS_ADDR_BITS-1 downto 0);    -- rd addr
-        issue_rob_idx_o          : out std_logic_vector(ROB_ADDR_BITS-1 downto 0);    -- rd addr
+        issue_valid_o            : out std_logic;
+        issue_rs1_addr_o         : out std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
+        issue_rs2_addr_o         : out std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
+        issue_rd_addr_o          : out std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
+        issue_rob_idx_o          : out std_logic_vector(ROB_ADDR_BITS-1 downto 0);
         issue_lsq_idx_o          : out std_logic_vector(LSQ_BITS-1 downto 0);
         
         issue_rs1_ready_o        : out std_logic;
         issue_rs2_ready_o        : out std_logic;
         
-        issue_instr_type_o       : out std_logic_vector(3 downto 0);                 -- needed for selecting ex units
-        issue_instr_subtype_o    : out std_logic_vector(4 downto 0);                 -- needed for ex units
+        issue_instr_type_o       : out std_logic_vector(3 downto 0);
+        issue_instr_subtype_o    : out std_logic_vector(4 downto 0);
         
         issue_imm_o              : out std_logic_vector(DATA_WIDTH-1 downto 0);
         
@@ -63,7 +63,7 @@ end entity;
 
 architecture Behavioral of issue_module is
     
-    -- IQ entries RAM
+    -- IQ payload RAM
     type iq_entry_t is record
         instruction     : std_logic_vector(DATA_WIDTH-1 downto 0);
         rd_addr         : std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
@@ -75,10 +75,37 @@ architecture Behavioral of issue_module is
         lsq_idx         : std_logic_vector(LSQ_BITS-1 downto 0);
     end record;
 
-    type iq_ram_t is array(0 to IQ_DEPTH-1) of iq_entry_t;
-    signal iq_ram_s : iq_ram_t;
+    constant IQ_WORD_BITS : natural := 3*DATA_WIDTH + PHYS_ADDR_BITS + 4 + 5 + ROB_ADDR_BITS + LSQ_BITS;
+
+    function to_word(e : iq_entry_t) return std_logic_vector is
+    begin
+        return e.instruction & e.rd_addr & e.imm & e.pc_value & e.instr_type &
+               e.instr_subtype & e.rob_idx & e.lsq_idx;
+    end function;
+
+    function to_entry(w : std_logic_vector(IQ_WORD_BITS-1 downto 0)) return iq_entry_t is
+        variable e : iq_entry_t;
+        variable p : natural := IQ_WORD_BITS;
+    begin
+        e.instruction   := w(p-1 downto p-DATA_WIDTH);      p := p - DATA_WIDTH;
+        e.rd_addr       := w(p-1 downto p-PHYS_ADDR_BITS);  p := p - PHYS_ADDR_BITS;
+        e.imm           := w(p-1 downto p-DATA_WIDTH);      p := p - DATA_WIDTH;
+        e.pc_value      := w(p-1 downto p-DATA_WIDTH);      p := p - DATA_WIDTH;
+        e.instr_type    := w(p-1 downto p-4);               p := p - 4;
+        e.instr_subtype := w(p-1 downto p-5);               p := p - 5;
+        e.rob_idx       := w(p-1 downto p-ROB_ADDR_BITS);   p := p - ROB_ADDR_BITS;
+        e.lsq_idx       := w(p-1 downto 0);
+        return e;
+    end function;
+
+    -- Flat words, so it maps to LUTRAM
+    type iq_ram_t is array(0 to IQ_DEPTH-1) of std_logic_vector(IQ_WORD_BITS-1 downto 0);
+    signal iq_ram_s   : iq_ram_t;
+    signal iq_read_s  : iq_entry_t;
+    attribute ram_style : string;
+    attribute ram_style of iq_ram_s : signal is "distributed";
     
-    -- IQ entries flip-flops
+    -- IQ status flip-flops
     type iq_ff_entry_t is record
         valid           : std_logic;
         rs1_ready       : std_logic;
@@ -90,7 +117,7 @@ architecture Behavioral of issue_module is
     type iq_ffs_t is array (0 to IQ_DEPTH-1) of iq_ff_entry_t;
     signal iq_ffs_s : iq_ffs_t;
     
-    -- Valid and addr signals to address the IQ RAM/ffs
+    -- IQ addressing signals
     signal dispatch_ready_s         : std_logic;
     signal dispatch_addr_s          : std_logic_vector(IQ_BITS-1  downto 0);
     
@@ -105,14 +132,31 @@ architecture Behavioral of issue_module is
     
 begin
 
-    -- IQ RAM
-    -- Synchronous read/write
-    process(clk)
+    -- Payload RAM, no reset
+    payload_wr: process(clk)
+    begin
+        if (rising_edge(clk)) then
+            if (dispatch_ready_s = '1' and dispatch_valid_i = '1') then
+                iq_ram_s(to_integer(unsigned(dispatch_addr_s))) <= to_word((
+                    rd_addr       => dispatch_rd_addr_i,
+                    instr_type    => dispatch_instr_type_i,
+                    instr_subtype => dispatch_instr_subtype_i,
+                    imm           => dispatch_imm_i,
+                    pc_value      => dispatch_pc_reg_i,
+                    rob_idx       => dispatch_rob_idx_i,
+                    lsq_idx       => dispatch_lsq_idx_i,
+                    instruction   => dispatch_instruction));
+            end if;
+        end if;
+    end process;
+
+    iq_read_s <= to_entry(iq_ram_s(to_integer(unsigned(issue_addr_s))));
+
+    -- Registered payload read
+    payload_rd: process(clk)
     begin
         if (rising_edge(clk)) then
             if (reset = '0') then
-                iq_ram_s <= (others => (others => (others => '0')));
-                
                 issue_rd_addr_o       <= (others => '0');
                 issue_instr_type_o    <= (others => '0');
                 issue_instr_subtype_o <= (others => '0');
@@ -121,44 +165,20 @@ begin
                 issue_rob_idx_o       <= (others => '0');
                 issue_lsq_idx_o       <= (others => '0');
                 issue_instruction     <= (others => '0');
-                
-            else
-                -- Dispatch
-                -- Write into the Instruction Queue RAM
-                if (dispatch_ready_s = '1') then
-                    if (dispatch_valid_i = '1') then
-                        iq_ram_s(to_integer(unsigned(dispatch_addr_s))).rd_addr         <= dispatch_rd_addr_i;
-                        iq_ram_s(to_integer(unsigned(dispatch_addr_s))).instr_type      <= dispatch_instr_type_i;
-                        iq_ram_s(to_integer(unsigned(dispatch_addr_s))).instr_subtype   <= dispatch_instr_subtype_i;
-                        iq_ram_s(to_integer(unsigned(dispatch_addr_s))).imm             <= dispatch_imm_i;
-                        iq_ram_s(to_integer(unsigned(dispatch_addr_s))).pc_value        <= dispatch_pc_reg_i;
-                        iq_ram_s(to_integer(unsigned(dispatch_addr_s))).rob_idx         <= dispatch_rob_idx_i;
-                        iq_ram_s(to_integer(unsigned(dispatch_addr_s))).lsq_idx         <= dispatch_lsq_idx_i;
-                        iq_ram_s(to_integer(unsigned(dispatch_addr_s))).instruction     <= dispatch_instruction;
-                    end if;
-                end if;
-                
-                -- Issue
-                -- Read from the Instruction Queue RAM
-                if (stall_iq_is_i = '0') then
-                    if (issue_valid_s = '1') then
-                        issue_rd_addr_o         <= iq_ram_s(to_integer(unsigned(issue_addr_s))).rd_addr;
-                        issue_instr_type_o      <= iq_ram_s(to_integer(unsigned(issue_addr_s))).instr_type;
-                        issue_instr_subtype_o   <= iq_ram_s(to_integer(unsigned(issue_addr_s))).instr_subtype;
-                        issue_imm_o             <= iq_ram_s(to_integer(unsigned(issue_addr_s))).imm;
-                        issue_pc_reg_o          <= iq_ram_s(to_integer(unsigned(issue_addr_s))).pc_value;
-                        issue_rob_idx_o         <= iq_ram_s(to_integer(unsigned(issue_addr_s))).rob_idx;
-                        issue_lsq_idx_o         <= iq_ram_s(to_integer(unsigned(issue_addr_s))).lsq_idx;
-                        issue_instruction       <= iq_ram_s(to_integer(unsigned(issue_addr_s))).instruction;
-                    end if;
-                end if;
-                
+            elsif (stall_iq_is_i = '0' and issue_valid_s = '1') then
+                issue_rd_addr_o       <= iq_read_s.rd_addr;
+                issue_instr_type_o    <= iq_read_s.instr_type;
+                issue_instr_subtype_o <= iq_read_s.instr_subtype;
+                issue_imm_o           <= iq_read_s.imm;
+                issue_pc_reg_o        <= iq_read_s.pc_value;
+                issue_rob_idx_o       <= iq_read_s.rob_idx;
+                issue_lsq_idx_o       <= iq_read_s.lsq_idx;
+                issue_instruction     <= iq_read_s.instruction;
             end if;
         end if;
-    end process;    
-    
-    -- IQ FFs
-    -- Synchronous write
+    end process;
+
+    -- Status flip-flops
     process(clk)
     begin
         if (rising_edge(clk)) then
@@ -173,22 +193,19 @@ begin
                     iq_ffs_s(i).rs2_addr    <= (others => '0');
                 end loop;
             else
-                -- Dispatch
-                -- Write into the Instruction Queue FFs
+                -- Dispatch writes status
                 if (dispatch_ready_s = '1') then
                     if (dispatch_valid_i = '1') then
                         iq_ffs_s(to_integer(unsigned(dispatch_addr_s))).valid    <= '1';
                         iq_ffs_s(to_integer(unsigned(dispatch_addr_s))).rs1_addr <= dispatch_rs1_addr_i;
                         iq_ffs_s(to_integer(unsigned(dispatch_addr_s))).rs2_addr <= dispatch_rs2_addr_i;
                     
-                        -- Set operand ready fields if tag is published, else read from RN/IS reg
                         if(dispatch_rs1_addr_i = cdb_addr_i and cdb_valid_i = '1') then
                             iq_ffs_s(to_integer(unsigned(dispatch_addr_s))).rs1_ready   <= '1';
                         else
                             iq_ffs_s(to_integer(unsigned(dispatch_addr_s))).rs1_ready   <= dispatch_rs1_ready_i;
                         end if;
                         
-                        -- Set operand ready fields if tag is published, else read from RN/IS reg
                         if(dispatch_rs2_addr_i = cdb_addr_i and cdb_valid_i = '1') then
                             iq_ffs_s(to_integer(unsigned(dispatch_addr_s))).rs2_ready   <= '1';
                         else
@@ -197,9 +214,7 @@ begin
                     end if;
                 end if;
                 
-
-                -- Issue
-                -- Reset the valid bits for the instruction that is issued
+                -- Issue clears valid
                 if (stall_iq_is_i = '0') then
                     if (issue_valid_s = '1') then
                         issue_valid_o <= '1';
@@ -209,7 +224,7 @@ begin
                     end if;  
                 end if;  
                 
-                -- Update all the operand ready fields
+                -- CDB wakeup of operands
                 if (cdb_valid_i = '1') then
                     for i in 0 to IQ_DEPTH-1 loop
                         if (iq_ffs_s(i).valid = '1') then
@@ -223,7 +238,7 @@ begin
                     end loop;
                 end if;
                 
-                -- Branch misspredicted (resolved at commit): everything in the IQ is wrong path
+                -- Flush clears the IQ
                 if(flush_pipe_i = '1') then   
                     issue_valid_o <= '0';
                     for i in 0 to IQ_DEPTH-1 loop
@@ -234,8 +249,7 @@ begin
         end if;
     end process;
     
-    -- This register is needed to match the cycle in which ram data and ff data is read
-    -- Also holds the round-robin issue/dispatch pointers
+    -- Read cycle alignment register
     addr_reg:process(clk)
     begin
         if (rising_edge(clk)) then
@@ -261,28 +275,25 @@ begin
         end if;
     end process;
     
-    -- Asynchronous read from IQ ffs
+    -- Issue read from status
     process(iq_ffs_s, issue_valid_reg_s, issue_addr_reg_s, cdb_valid_i, cdb_addr_i)
     begin
-            -- Default values
             issue_rs1_addr_o        <= (others => '0');
             issue_rs2_addr_o        <= (others => '0');
             issue_rs1_ready_o       <= '0';
             issue_rs2_ready_o       <= '0';
             
-        -- Issue/Read from the Instruction Queue
         if (issue_valid_reg_s = '1') then
             issue_rs1_addr_o        <= iq_ffs_s(to_integer(unsigned(issue_addr_reg_s))).rs1_addr;
             issue_rs2_addr_o        <= iq_ffs_s(to_integer(unsigned(issue_addr_reg_s))).rs2_addr;
             
-            -- Set operand ready fields if tag is published, else read from IQ
+            -- CDB bypass on issue
             if(cdb_valid_i = '1' and iq_ffs_s(to_integer(unsigned(issue_addr_reg_s))).rs1_addr = cdb_addr_i) then
                 issue_rs1_ready_o   <= '1';
             else
                 issue_rs1_ready_o   <= iq_ffs_s(to_integer(unsigned(issue_addr_reg_s))).rs1_ready;
             end if;
             
-            -- Set operand ready fields if tag is published, else read from IQ
             if(cdb_valid_i = '1' and iq_ffs_s(to_integer(unsigned(issue_addr_reg_s))).rs2_addr = cdb_addr_i) then
                 issue_rs2_ready_o   <= '1';
             else
@@ -291,15 +302,10 @@ begin
         end if;
     end process;
     
-    
-    -- Generic priority encoder for finding 
-    -- 1) free slot for dispatch 
+    -- Dispatch: free slot search
     dipatch_enc:process(iq_ffs_s, issue_addr_reg_s, dispatch_ptr_s)
         variable i    : integer;
     begin
-        --------------------------------------------------------------------
-        -- DISPATCH (round-robin free slot)
-        --------------------------------------------------------------------
         
         dispatch_ready_s <= '0';
         dispatch_addr_s  <= std_logic_vector(to_unsigned(0, IQ_BITS));
@@ -317,20 +323,12 @@ begin
         end loop;
     end process;
     
-    
-    -- Generic priority encoder for finding
-    -- 2) ready instruction with both operands to issue
-    -- Only fully ready instructions leave the IQ: a half ready one could sit in a
-    -- full RS waiting on an older instruction that can't get into that RS (deadlock)
-    -- Consumers of issue_valid_s/issue_addr_s are gated by stall_iq_is_i
+    -- Issue only fully ready entries
     process(iq_ffs_s, issue_ptr_s)
         variable idx  : integer;
         variable found: std_logic;
         variable i    : integer;
     begin
-        --------------------------------------------------------------------
-        -- FULL ISSUE (both operands ready)
-        --------------------------------------------------------------------
         idx := 0;
         found := '0';
         

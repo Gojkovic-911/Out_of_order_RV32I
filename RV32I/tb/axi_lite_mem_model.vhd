@@ -2,10 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
--- Simulation only: AXI4-Lite slave memory with pseudo random wait states
--- Every ready and every response is delayed by 0..MAX_WAIT cycles (LFSR),
--- AW and W are accepted independently. Byte memory of 2**WADDR bytes,
--- addresses wrap on WADDR bits.
+-- AXI4-Lite memory, random waits
 entity axi_lite_mem_model is
     generic (
         WADDR       : natural := 14;
@@ -14,7 +11,7 @@ entity axi_lite_mem_model is
     );
     port (
         clk             : in  std_logic;
-        reset           : in  std_logic;    -- active low
+        reset           : in  std_logic;
 
         s_axi_awaddr    : in  std_logic_vector(31 downto 0);
         s_axi_awvalid   : in  std_logic;
@@ -41,7 +38,7 @@ architecture sim of axi_lite_mem_model is
     type mem_t is array (0 to 2**WADDR - 1) of std_logic_vector(7 downto 0);
     signal mem_s : mem_t := (others => (others => '0'));
     
-    -- Outputs are read back, internal copies keep it VHDL-93 friendly
+    -- Internal copies of outputs
     signal awready_s, wready_s, bvalid_s, arready_s, rvalid_s : std_logic;
 
 begin
@@ -72,7 +69,7 @@ begin
 
         impure function next_wait return natural is
         begin
-            -- 16 bit Fibonacci LFSR, taps 16 14 13 11
+            -- 16-bit LFSR wait generator
             lfsr := lfsr(14 downto 0) & (lfsr(15) xor lfsr(13) xor lfsr(12) xor lfsr(10));
             if MAX_WAIT = 0 then
                 return 0;
@@ -96,7 +93,7 @@ begin
                 w_wait    := next_wait;
                 ar_wait   := next_wait;
             else
-                ---------------- write address ----------------
+                -- Write address channel
                 awready_s <= '0';
                 if (s_axi_awvalid = '1' and not aw_have and not b_pending) then
                     if aw_wait = 0 then
@@ -105,7 +102,6 @@ begin
                         aw_wait := aw_wait - 1;
                     end if;
                 end if;
-                -- handshake on this edge (ready was set in the previous cycle)
                 if (s_axi_awvalid = '1' and awready_s = '1') then
                     awready_s <= '0';
                     awaddr  := unsigned(s_axi_awaddr(WADDR-1 downto 0));
@@ -113,7 +109,7 @@ begin
                     aw_wait := next_wait;
                 end if;
 
-                ---------------- write data ----------------
+                -- Write data channel
                 wready_s <= '0';
                 if (s_axi_wvalid = '1' and not w_have and not b_pending) then
                     if w_wait = 0 then
@@ -130,7 +126,7 @@ begin
                     w_wait := next_wait;
                 end if;
 
-                ---------------- write the memory, response ----------------
+                -- Memory write and response
                 if (aw_have and w_have) then
                     a := to_integer(awaddr(WADDR-1 downto 2)) * 4;
                     for i in 0 to 3 loop
@@ -154,7 +150,7 @@ begin
                     end if;
                 end if;
 
-                ---------------- read ----------------
+                -- Read channel
                 arready_s <= '0';
                 if (s_axi_arvalid = '1' and not r_pending) then
                     if ar_wait = 0 then

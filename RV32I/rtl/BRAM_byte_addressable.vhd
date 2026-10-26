@@ -1,11 +1,14 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use std.textio.all;
 
 entity BRAM is
    generic
       (
-         WADDR : natural := 10
+         WADDR     : natural := 10;
+         -- Initial contents from file
+         INIT_FILE : string  := ""
          );
    port
       (
@@ -24,85 +27,59 @@ entity BRAM is
 
 end BRAM;
 
-architecture behavioral of BRAM is type ram_type is array(0 to 2**WADDR - 1)
-                                      of std_logic_vector(7 downto 0); signal ram_s :
-                                                                          ram_type := (others => (others => '0'));
-   signal rd_a_s, rd_b_s : std_logic_vector(31 downto 0);
+architecture behavioral of BRAM is
+   -- Word organized, byte enables
+   constant WORDS : natural := 2**(WADDR - 2);
+   type ram_type is array(0 to WORDS - 1) of std_logic_vector(31 downto 0);
+
+   impure function read_init_file(name : string) return ram_type is
+      file     f    : text open read_mode is name;
+      variable row  : line;
+      variable word : bit_vector(31 downto 0);
+      variable ram  : ram_type := (others => (others => '0'));
+      variable a    : natural  := 0;
+   begin
+      while (not endfile(f)) and (a < WORDS) loop
+         readline(f, row);
+         if row'length > 0 then
+            read(row, word);
+            ram(a) := to_stdlogicvector(word);
+            a := a + 1;
+         end if;
+      end loop;
+      return ram;
+   end function;
+
+   impure function init_ram return ram_type is
+   begin
+      if INIT_FILE = "" then
+         return (others => (others => '0'));
+      end if;
+      return read_init_file(INIT_FILE);
+   end function;
+
+   signal ram_s : ram_type := init_ram;
 
 begin
 
-   -- synchronous write
+   -- Read first, byte writes
    process(clk)
+      variable a_idx : natural range 0 to WORDS - 1;
+      variable b_idx : natural range 0 to WORDS - 1;
    begin
       if(rising_edge(clk)) then
+         a_idx := to_integer(unsigned(addr_a_i(WADDR - 1 downto 2)));
+         b_idx := to_integer(unsigned(addr_b_i(WADDR - 1 downto 2)));
          if(en_a_i = '1') then
-            if(we_a_i(3) = '1') then
-               ram_s(to_integer(unsigned(addr_a_i)+3)) <= data_a_i(31 downto 24);
-            end if;
-            if(we_a_i(2) = '1') then
-               ram_s(to_integer(unsigned(addr_a_i)+2)) <= data_a_i(23 downto 16);
-            end if;
-            if(we_a_i(1) = '1') then
-               ram_s(to_integer(unsigned(addr_a_i)+1)) <= data_a_i(15 downto 8);
-            end if;
-            if(we_a_i(0) = '1') then
-               ram_s(to_integer(unsigned(addr_a_i))) <= data_a_i(7 downto 0);
-            end if;
+            data_a_o <= ram_s(a_idx);
+            for i in 0 to 3 loop
+               if(we_a_i(i) = '1') then
+                  ram_s(a_idx)(8*i + 7 downto 8*i) <= data_a_i(8*i + 7 downto 8*i);
+               end if;
+            end loop;
          end if;
          if(en_b_i = '1') then
-            if(we_b_i(3) = '1') then
-               ram_s(to_integer(unsigned(addr_b_i)+3)) <= data_b_i(31 downto 24);
-            end if;
-            if(we_b_i(2) = '1') then
-               ram_s(to_integer(unsigned(addr_b_i)+2)) <= data_b_i(23 downto 16);
-            end if;
-            if(we_b_i(1) = '1') then
-               ram_s(to_integer(unsigned(addr_b_i)+1)) <= data_b_i(15 downto 8);
-            end if;
-            if(we_b_i(0) = '1') then
-               ram_s(to_integer(unsigned(addr_b_i))) <= data_b_i(7 downto 0);
-            end if;
-         end if;
-      end if;
-   end process;
-
-   -- addressed word, registered below
-   process(en_a_i, en_b_i, addr_a_i, addr_b_i, ram_s)
-   begin
-     rd_a_s(31 downto 24) <= ( others => '0');
-     rd_a_s(23 downto 16) <= ( others => '0');
-     rd_a_s(15 downto 8)  <= ( others => '0');
-     rd_a_s(7 downto 0)   <= ( others => '0');
-     
-     rd_b_s(31 downto 24) <= ( others => '0');
-     rd_b_s(23 downto 16) <= ( others => '0');
-     rd_b_s(15 downto 8)  <= ( others => '0');
-     rd_b_s(7 downto 0)   <= ( others => '0');
-     
-      if(en_a_i = '1') then
-         rd_a_s(31 downto 24) <= ram_s(to_integer(unsigned(addr_a_i)+3));
-         rd_a_s(23 downto 16) <= ram_s(to_integer(unsigned(addr_a_i)+2));
-         rd_a_s(15 downto 8)  <= ram_s(to_integer(unsigned(addr_a_i)+1));
-         rd_a_s(7 downto 0)   <= ram_s(to_integer(unsigned(addr_a_i)));
-      end if;
-      if(en_b_i = '1') then
-         rd_b_s(31 downto 24) <= ram_s(to_integer(unsigned(addr_b_i)+3));
-         rd_b_s(23 downto 16) <= ram_s(to_integer(unsigned(addr_b_i)+2));
-         rd_b_s(15 downto 8)  <= ram_s(to_integer(unsigned(addr_b_i)+1));
-         rd_b_s(7 downto 0)   <= ram_s(to_integer(unsigned(addr_b_i)));
-      end if;
-   end process;
-   
-   -- synchronous read (block RAM): data one cycle after the address,
-   -- read-first (a write in the same cycle shows up on the next read)
-   process(clk)
-   begin
-      if(rising_edge(clk)) then
-         if(en_a_i = '1') then
-            data_a_o <= rd_a_s;
-         end if;
-         if(en_b_i = '1') then
-            data_b_o <= rd_b_s;
+            data_b_o <= ram_s(b_idx);
          end if;
       end if;
    end process;

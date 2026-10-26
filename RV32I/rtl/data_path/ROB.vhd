@@ -15,7 +15,7 @@ entity ROB is
         clk             : in  std_logic;
         reset           : in  std_logic;
         
-        -- Rename stage
+        -- Rename stage ports
         rename_instr_valid_i: in  std_logic;
         rename_rd_arch_i    : in  std_logic_vector(ARCH_ADDR_BITS-1 downto 0);
         rename_rd_phys_i    : in  std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
@@ -25,15 +25,13 @@ entity ROB is
         rename_is_store_i   : in  std_logic;
         rob_tail_idx_o      : out std_logic_vector(ROB_ADDR_BITS-1 downto 0);
 
-        -- WB stage
+        -- Write-back ports
         wb_valid_i          : in  std_logic;
         wb_rob_idx_i        : in  std_logic_vector(ROB_ADDR_BITS-1 downto 0);
 
-        -- Store address/data in LSQ
         store_done_valid_i  : in  std_logic;
         store_done_idx_i    : in  std_logic_vector(ROB_ADDR_BITS-1 downto 0);
 
-        -- Jump addr
         branch_addr_i       : in  std_logic_vector(DATA_WIDTH-1 downto 0);
         branch_addr_valid_i : in  std_logic;
         branch_addr_tag_i   : in  std_logic_vector(ROB_ADDR_BITS-1 downto 0);
@@ -44,7 +42,7 @@ entity ROB is
         
         misspredict_o       : out std_logic;
         
-        -- Commit stage
+        -- Commit ports
         commit_valid_o      : out std_logic;
         commit_rd_arch_o    : out std_logic_vector(ARCH_ADDR_BITS-1 downto 0);
         commit_rd_phys_o    : out std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
@@ -64,19 +62,23 @@ architecture Behavioral of rob is
     type rob_entry is record
         valid       : std_logic;
         ready       : std_logic;
-        rd_instr    : std_logic;  
-        rd_arch     : std_logic_vector(4 downto 0);
-        rd_phys     : std_logic_vector(5 downto 0);
-        prev_phys   : std_logic_vector(5 downto 0);
+        rd_instr    : std_logic;
         is_branch   : std_logic;
         is_store    : std_logic;
         branch_taken: std_logic;
-        branch_addr : std_logic_vector(DATA_WIDTH-1 downto 0);
-        instruction : std_logic_vector(DATA_WIDTH-1 downto 0);
     end record;
     type rob_array is array (0 to ROB_DEPTH - 1) of rob_entry;
     
     signal rob : rob_array;
+
+    -- Payload LUTRAMs: rename port, branch port
+    constant RN_WORD_BITS : natural := ARCH_ADDR_BITS + 2*PHYS_ADDR_BITS + DATA_WIDTH;
+    type rn_ram_t is array (0 to ROB_DEPTH - 1) of std_logic_vector(RN_WORD_BITS-1 downto 0);
+    type br_ram_t is array (0 to ROB_DEPTH - 1) of std_logic_vector(DATA_WIDTH-1 downto 0);
+    signal rn_ram_s     : rn_ram_t;
+    signal br_ram_s     : br_ram_t;
+    signal rn_head_s    : std_logic_vector(RN_WORD_BITS-1 downto 0);
+    signal alloc_s      : std_logic;
     
     signal head, tail : integer range 0 to ROB_DEPTH - 1 := 0;
     
@@ -85,14 +87,14 @@ architecture Behavioral of rob is
     
 begin
     
-    -- Rename stage
+    -- Rename allocates entry
     process(clk)
     begin
         if (rising_edge(clk)) then
             if (reset = '0') then
                 head    <= 0;
                 tail    <= 0;
-                rob     <=  (others => (valid => '0', ready => '0', rd_instr => '0', is_branch => '0', is_store => '0', branch_taken => '0', others => (others => '0')));
+                rob     <=  (others => (valid => '0', ready => '0', rd_instr => '0', is_branch => '0', is_store => '0', branch_taken => '0'));
 
                 commit_valid_o      <= '0';
                 commit_store_o      <= '0';
@@ -107,26 +109,21 @@ begin
                 commit_valid_o      <= '0';
                 commit_store_o      <= '0';
 
-                -- Rename stage
-                if rename_instr_valid_i = '1' and rob(tail).valid = '0' then
+                if alloc_s = '1' then
                     rob(tail).valid     <= '1';
                     if rename_instruction_i = x"00000013" then
                         rob(tail).ready     <= '1';
                     else
                         rob(tail).ready     <= '0';
                     end if;
-                    rob(tail).rd_arch   <= rename_rd_arch_i;
-                    rob(tail).rd_phys   <= rename_rd_phys_i;
-                    rob(tail).prev_phys <= rename_prev_phys_i;
                     rob(tail).rd_instr  <= rename_rd_instr_i;
                     rob(tail).is_store  <= rename_is_store_i;
                     rob(tail).is_branch     <= '0';
                     rob(tail).branch_taken  <= '0';
-                    rob(tail).instruction   <= rename_instruction_i;
                     tail                <= (tail + 1) mod ROB_DEPTH;
                 end if;
                     
-                -- Write-back stage    
+                -- Write-back stage
                 if (wb_valid_i = '1') then
                     rob(to_integer(unsigned(wb_rob_idx_i))).ready <= '1';
                 end if;
@@ -135,9 +132,7 @@ begin
                     rob(to_integer(unsigned(store_done_idx_i))).ready <= '1';
                 end if;
                 
-                -- Branch in    
                 if (branch_addr_valid_i = '1') then
-                    rob(to_integer(unsigned(branch_addr_tag_i))).branch_addr  <= branch_addr_i;
                     rob(to_integer(unsigned(branch_addr_tag_i))).is_branch    <= '1';
                 end if;
                 
@@ -150,19 +145,18 @@ begin
                 if rob(head).valid = '1' and rob(head).ready = '1' then
                     commit_valid_o      <= '1';
                     commit_rd_instr_o   <= rob(head).rd_instr;
-                    commit_rd_arch_o    <= rob(head).rd_arch;
-                    commit_rd_phys_o    <= rob(head).rd_phys;
-                    commit_prev_phys_o  <= rob(head).prev_phys;
+                    commit_rd_arch_o    <= rn_head_s(RN_WORD_BITS-1 downto RN_WORD_BITS-ARCH_ADDR_BITS);
+                    commit_rd_phys_o    <= rn_head_s(RN_WORD_BITS-ARCH_ADDR_BITS-1 downto DATA_WIDTH+PHYS_ADDR_BITS);
+                    commit_prev_phys_o  <= rn_head_s(DATA_WIDTH+PHYS_ADDR_BITS-1 downto DATA_WIDTH);
                     commit_store_o      <= rob(head).is_store;
 
                     if(rob(head).is_branch = '1') then
-                        if(rob(head).branch_taken = '0') then -- missprediction
+                        if(rob(head).branch_taken = '0') then
                         
-                            commit_jump_addr_o  <= rob(head).branch_addr;
+                            commit_jump_addr_o  <= br_ram_s(head);
                             misspredict_s       <= '1';
                             
-                            -- Branch at head: everything younger is wrong path
-                            -- (including the entry renamed in this same cycle)
+                            -- Branch at head flushes younger
                             for i in 0 to ROB_DEPTH-1 loop
                                 rob(i).valid <= '0';
                             end loop;
@@ -182,13 +176,30 @@ begin
     end process;
     
     misspredict_o   <= misspredict_s;
+
+    alloc_s <= rename_instr_valid_i and not rob(tail).valid;
+
+    -- Payload writes, no reset
+    payload_wr: process(clk)
+    begin
+        if rising_edge(clk) then
+            if alloc_s = '1' then
+                rn_ram_s(tail) <= rename_rd_arch_i & rename_rd_phys_i & rename_prev_phys_i & rename_instruction_i;
+            end if;
+            if branch_addr_valid_i = '1' then
+                br_ram_s(to_integer(unsigned(branch_addr_tag_i))) <= branch_addr_i;
+            end if;
+        end if;
+    end process;
+
+    rn_head_s <= rn_ram_s(head);
                         
-    rob_tail_idx_o <= std_logic_vector(to_unsigned(tail, 6));
+    rob_tail_idx_o <= std_logic_vector(to_unsigned(tail, ROB_ADDR_BITS));
 
     -- pragma translate_off
-    -- Deadlock check: valid ROB head not committing
+    -- Deadlock watchdog, simulation only
     rob_deadlock_check: process(clk)
-        constant STUCK_LIMIT : natural := 1000;    -- a load can wait behind a full LSQ of slow (AXI) stores
+        constant STUCK_LIMIT : natural := 1000;
         variable head_prev   : integer range 0 to ROB_DEPTH - 1 := 0;
         variable stuck_cnt   : natural := 0;
     begin

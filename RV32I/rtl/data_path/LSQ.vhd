@@ -3,14 +3,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.instr_types_pkg.all;
 
--- Load/store queue
--- Entries allocated in program order at rename, filled out of order by the AGU.
--- Head executes in order, one memory transaction at a time (valid/ready
--- request, response whenever the memory has it, e.g. through AXI-Lite):
---   load  -> requested as soon as it's ready, data captured on the response,
---            then sent to the cdb
---   store -> requested only after the ROB committed it, leaves the queue on
---            the write response; committed stores survive a flush
+-- Load/store queue, in-order head
 entity LSQ is
     generic (
         DATA_WIDTH      : natural := 32;
@@ -18,19 +11,18 @@ entity LSQ is
         PHYS_ADDR_BITS  : natural := 6;
         ROB_ADDR_BITS   : natural := 6;
         LSQ_DEPTH       : natural := 16;
-        LSQ_BITS        : natural := 4      -- log2(LSQ_DEPTH)
+        LSQ_BITS        : natural := 4
     );
     port (
         clk                 : in  std_logic;
         reset               : in  std_logic;
 
-        -- Allocation (rename stage)
+        -- Allocation and AGU fill
         alloc_valid_i       : in  std_logic;
         alloc_is_store_i    : in  std_logic;
         lsq_tail_idx_o      : out std_logic_vector(LSQ_BITS-1 downto 0);
         lsq_full_o          : out std_logic;
 
-        -- Fill (execute stage, AGU result)
         fill_valid_i        : in  std_logic;
         fill_idx_i          : in  std_logic_vector(LSQ_BITS-1 downto 0);
         fill_addr_i         : in  std_logic_vector(DATA_WIDTH-1 downto 0);
@@ -39,26 +31,25 @@ entity LSQ is
         fill_rd_addr_i      : in  std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
         fill_rob_idx_i      : in  std_logic_vector(ROB_ADDR_BITS-1 downto 0);
 
-        -- Store committed by the ROB
+        -- Commit and CDB
         commit_store_i      : in  std_logic;
 
         flush_pipe_i        : in  std_logic;
 
-        -- CDB request (load at head)
         cdb_req_o           : out std_logic;
         cdb_grant_i         : in  std_logic;
         cdb_data_o          : out std_logic_vector(DATA_WIDTH-1 downto 0);
         cdb_rd_addr_o       : out std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
         cdb_rob_idx_o       : out std_logic_vector(ROB_ADDR_BITS-1 downto 0);
 
-        -- Data Memory Interface
-        data_mem_req_o      : out std_logic;    -- request valid
-        data_mem_ready_i    : in  std_logic;    -- request accepted
-        data_mem_we_o       : out std_logic;    -- store
+        -- Data memory port
+        data_mem_req_o      : out std_logic;
+        data_mem_ready_i    : in  std_logic;
+        data_mem_we_o       : out std_logic;
         data_mem_addr_o     : out std_logic_vector(DATA_WIDTH-1 downto 0);
         data_mem_wdata_o    : out std_logic_vector(DATA_WIDTH-1 downto 0);
         data_mem_be_o       : out std_logic_vector(MEM_BYTES-1 downto 0);
-        data_mem_rsp_i      : in  std_logic;    -- response (read data / write done)
+        data_mem_rsp_i      : in  std_logic;
         data_mem_rdata_i    : in  std_logic_vector(DATA_WIDTH-1 downto 0)
     );
 end entity;
@@ -67,7 +58,7 @@ architecture Behavioral of LSQ is
 
     type lsq_entry_t is record
         valid           : std_logic;
-        ready           : std_logic;    -- address (and store data) known
+        ready           : std_logic;
         is_store        : std_logic;
         addr            : std_logic_vector(DATA_WIDTH-1 downto 0);
         wdata           : std_logic_vector(DATA_WIDTH-1 downto 0);
@@ -81,17 +72,21 @@ architecture Behavioral of LSQ is
 
     signal head, tail           : integer range 0 to LSQ_DEPTH-1 := 0;
 
-    -- One memory transaction in flight
-    signal busy_s               : std_logic;    -- request accepted, response pending
-    signal busy_store_s         : std_logic;    -- the pending one is a store
-    signal discard_s            : std_logic;    -- pending load was flushed, drop its data
+    -- One transaction in flight
+    signal busy_s               : std_logic;
+    signal busy_store_s         : std_logic;
+    signal discard_s            : std_logic;
     
-    signal head_load_s          : std_logic;    -- head is a load with its address known
-    signal load_done_s          : std_logic;    -- head load data captured, waiting for the cdb
+    signal head_load_s          : std_logic;
+    signal load_done_s          : std_logic;
     signal load_data_s          : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal load_ext_s           : std_logic_vector(DATA_WIDTH-1 downto 0);
     
-    signal committed_cnt        : integer range 0 to LSQ_DEPTH;    -- committed stores still in the queue
+    signal head_addr_s          : std_logic_vector(DATA_WIDTH-1 downto 0);
+    signal head_wdata_s         : std_logic_vector(DATA_WIDTH-1 downto 0);
+    signal head_subtype_s       : std_logic_vector(4 downto 0);
+    
+    signal committed_cnt        : integer range 0 to LSQ_DEPTH;
     
     signal issue_load_s         : std_logic;
     signal issue_store_s        : std_logic;
@@ -103,32 +98,35 @@ begin
 
     head_load_s     <= lsq_s(head).valid and lsq_s(head).ready and (not lsq_s(head).is_store);
     
-    -- Load at head goes as soon as it's ready, store only once committed
+    -- Head request to memory
     issue_load_s    <= head_load_s and (not busy_s) and (not load_done_s) and (not flush_pipe_i);
     issue_store_s   <= lsq_s(head).valid and lsq_s(head).is_store and (not busy_s) when committed_cnt > 0 else '0';
     
     data_mem_req_o  <= issue_load_s or issue_store_s;
     data_mem_we_o   <= issue_store_s;
     
-    -- Responses come back in order, for the head entry
     load_rsp_s      <= data_mem_rsp_i and busy_s and (not busy_store_s) and (not discard_s);
     store_done_s    <= data_mem_rsp_i and busy_s and busy_store_s;
     
     cdb_req_o       <= load_done_s and head_load_s and (not flush_pipe_i);
     load_pop_s      <= load_done_s and head_load_s and (not flush_pipe_i) and cdb_grant_i;
 
-    -- Byte enables / store data and load extension for the head entry
+    -- LSU for head entry
+    head_addr_s     <= lsq_s(head).addr;
+    head_wdata_s    <= lsq_s(head).wdata;
+    head_subtype_s  <= lsq_s(head).instr_subtype;
+    
     u_lsu: entity work.LSU
         generic map (
             DATA_WIDTH => DATA_WIDTH,
             MEM_BYTES  => MEM_BYTES
         )
         port map (
-            data_mem_addr_i   => lsq_s(head).addr,
-            data_mem_wdata_i  => lsq_s(head).wdata,
+            data_mem_addr_i   => head_addr_s,
+            data_mem_wdata_i  => head_wdata_s,
             data_mem_rdata_o  => load_ext_s,
 
-            lsu_subtype_i     => lsq_s(head).instr_subtype,
+            lsu_subtype_i     => head_subtype_s,
 
             data_mem_addr_o   => data_mem_addr_o,
             data_mem_wdata_o  => data_mem_wdata_o,
@@ -174,7 +172,7 @@ begin
                     load_done_s     <= '0';
                 end if;
                 
-                -- Committed stores still waiting for their write
+                -- Committed store count
                 committed_v := committed_cnt;
                 if (commit_store_i = '1') then
                     committed_v := committed_v + 1;
@@ -192,7 +190,6 @@ begin
                     tail                    <= (tail + 1) mod LSQ_DEPTH;
                 end if;
 
-                -- Fill from the AGU
                 if (fill_valid_i = '1' and lsq_s(to_integer(unsigned(fill_idx_i))).valid = '1') then
                     lsq_s(to_integer(unsigned(fill_idx_i))).ready   <= '1';
                     lsq_s(to_integer(unsigned(fill_idx_i))).addr    <= fill_addr_i;
@@ -202,15 +199,13 @@ begin
                     lsq_s(to_integer(unsigned(fill_idx_i))).rob_idx <= fill_rob_idx_i;
                 end if;
 
-                -- Retire the head
                 if (load_pop_s = '1' or store_done_s = '1') then
                     lsq_s(head).valid   <= '0';
                     lsq_s(head).ready   <= '0';
                     head                <= (head + 1) mod LSQ_DEPTH;
                 end if;
 
-                -- Branch misspredicted (resolved at commit): everything is wrong path but
-                -- the committed stores, which are the oldest entries (from head on)
+                -- Flush keeps committed stores
                 if (flush_pipe_i = '1') then
                     committed_v := committed_cnt;
                     if (commit_store_i = '1') then
@@ -223,7 +218,7 @@ begin
                     end loop;
                     tail        <= (head + committed_v) mod LSQ_DEPTH;
                     load_done_s <= '0';
-                    -- a load in flight can't be cancelled: its response is dropped
+                    -- In-flight load response dropped
                     if (busy_s = '1' and busy_store_s = '0' and data_mem_rsp_i = '0') then
                         discard_s <= '1';
                     end if;

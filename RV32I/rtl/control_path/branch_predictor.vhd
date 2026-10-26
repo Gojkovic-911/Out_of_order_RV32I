@@ -24,13 +24,12 @@ begin
     begin
         is_jump_o    <= '0';
         if opcode = OPCODE_BRANCH then
-            -- BRANCH
+            -- Static branch prediction
             is_jump_o       <= '1';
         
         elsif opcode = OPCODE_JAL then
-            -- JAL
             is_jump_o       <= '1';
         end if;
-        -- JALR: not predicted, fall-through is flushed at commit
+        -- JALR is not predicted
     end process;
 end Behavioral;

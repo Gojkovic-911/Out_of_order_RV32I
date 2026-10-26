@@ -1,13 +1,11 @@
 #!/bin/bash
 
-# ======================================================
-# SCRIPT: collect_results.sh
-# Reads all test results and prints summary
-# ======================================================
+# Summarize test results
+# Usage: verdict.sh [test]
 
-BASE_DIR="RV32I/RISCV_tb"
+BASE_DIR="RV32I/tests"
+PATTERN="${1:-*test}"
 
-# Terminal colors (optional)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -17,7 +15,7 @@ echo ""
 echo "============================================================"
 echo "TEST RESULTS SUMMARY"
 echo "============================================================"
-printf "%-30s %-10s\n" "Test Name" "Verdict"
+printf "%-30s %-10s %s\n" "Test Name" "Verdict" "IPC"
 echo "------------------------------------------------------------"
 
 PASS=0
@@ -25,16 +23,15 @@ FAIL=0
 MISSING=0
 
 # Find all test directories
-for test_dir in "$BASE_DIR"/*test/; do
+for test_dir in "$BASE_DIR"/$PATTERN/; do
     if [ -d "$test_dir" ]; then
         test_name=$(basename "$test_dir")
         result_file="$test_dir/comparison_results.txt"
+        ipc=$(awk '/^ipc/{print $2}' "$test_dir/ipc.txt" 2>/dev/null)
         
         if [ -f "$result_file" ]; then
-            # Extract VERDICT line
             verdict=$(grep -E "VERDICT:" "$result_file" | head -1 | awk '{print $2}')
             
-            # No VERDICT line, fallback
             if [ -z "$verdict" ]; then
                 if grep -q "FAIL: 0" "$result_file"; then
                     verdict="PASS"
@@ -47,11 +44,11 @@ for test_dir in "$BASE_DIR"/*test/; do
             
             case "$verdict" in
                 PASS)
-                    printf "%-30s ${GREEN}%-10s${NC}\n" "$test_name" "$verdict"
+                    printf "%-30s ${GREEN}%-10s${NC} %s\n" "$test_name" "$verdict" "$ipc"
                     ((PASS++))
                     ;;
                 FAIL)
-                    printf "%-30s ${RED}%-10s${NC}\n" "$test_name" "$verdict"
+                    printf "%-30s ${RED}%-10s${NC} %s\n" "$test_name" "$verdict" "$ipc"
                     ((FAIL++))
                     ;;
                 *)
@@ -66,12 +63,6 @@ for test_dir in "$BASE_DIR"/*test/; do
     fi
 done
 
-#echo "------------------------------------------------------------"
-#echo ""
-#echo "TOTAL:     $((PASS + FAIL + MISSING)) tests"
-#echo -e "${GREEN}PASS:      $PASS${NC}"
-#echo -e "${RED}FAIL:      $FAIL${NC}"
-#echo -e "${YELLOW}MISSING:   $MISSING${NC}"
 echo "============================================================"
-#echo ""
 
+[ $FAIL -eq 0 ] && [ $MISSING -eq 0 ]

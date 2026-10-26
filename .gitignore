@@ -17,4 +17,13 @@ RISCV_project
 cmp
 *.hex
 *.dis
+*.sha
 sim_np
+ip_package
+ip_repo
+synth_out
+zybo_project
+bitstream_out
+sweep_out
+SHA3_platform
+__pycache__

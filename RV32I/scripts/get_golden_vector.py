@@ -1,4 +1,6 @@
 from playwright.sync_api import sync_playwright
+import hashlib
+import os
 import time
 import sys
 
@@ -6,7 +8,7 @@ def wait_for_completion(page, timeout=300000):
     """Wait for 'No more instructions to run!' text to appear."""
     print("Waiting for execution to complete...")
     try:
-        # Wait for the completion message to appear in the recent-instruction div
+        # Wait for completion message
         page.wait_for_function(
             '''() => {
                 const div = document.querySelector('#recent-instruction');
@@ -25,31 +27,26 @@ def wait_for_completion(page, timeout=300000):
 
 def run_interpreter(asm_file: str, out_regs: str):
     """Run the RISC-V interpreter on a local .s file, download registers, and save memory."""
-    # Read assembly code from file
+    # Read assembly code
     asm_code = open(asm_file, 'r').read()
     
     with sync_playwright() as p:
-        # Launch headless Chromium
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
         
-        # Navigate to the RISC-V interpreter page
+        # Run on web interpreter
         page.goto("https://www.cs.cornell.edu/courses/cs3410/2019sp/riscv/interpreter/")
         page.evaluate("setFrequency(256)")
         
-        # Fill the code textarea
-        page.fill('#code', '')           # clear any existing code
-        page.fill('#code', asm_code)     # input our assembly code
+        page.fill('#code', '')
+        page.fill('#code', asm_code)
         
-        # Click Reset and Run buttons to execute the code
         page.click('text=Reset')
         page.click('text=Run')
         
-        # Wait for completion using the "No more instructions to run!" message
         if not wait_for_completion(page, timeout=300000):
             print("Warning: Execution may not have completed successfully")
         
-        # Small delay to ensure everything is stable
         time.sleep(0.5)
         
         # Download the registers
@@ -58,12 +55,17 @@ def run_interpreter(asm_file: str, out_regs: str):
         download = download_info.value
         download.save_as(out_regs)
         
-        # Close the browser
         browser.close()
 
 if __name__ == "__main__":
     testname = sys.argv[1]
-    run_interpreter(
-        f"../RISCV_tb/{testname}/{testname}.s", 
-        f"../RISCV_tb/{testname}/golden_vector_regs.txt"
-    )
+    asm = f"../tests/{testname}/{testname}.s"
+    regs = f"../tests/{testname}/golden_vector_regs.txt"
+    # Reuse golden of unchanged source
+    digest = hashlib.sha256(open(asm, 'rb').read()).hexdigest()
+    sha = regs.replace('.txt', '.sha')
+    if os.path.exists(regs) and os.path.exists(sha) and open(sha).read() == digest:
+        print("Golden vector up to date")
+        sys.exit(0)
+    run_interpreter(asm, regs)
+    open(sha, 'w').write(digest)

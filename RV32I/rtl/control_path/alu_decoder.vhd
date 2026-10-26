@@ -5,27 +5,27 @@ use work.alu_ops_pkg.all;
 
 entity alu_decoder is
    port (
-      --******** Controlpath inputs *********
+      -- Control path inputs
       alu_2bit_op_i : in  std_logic_vector(1 downto 0);
-      --******** Instruction fields *******
+      -- Instruction fields
       funct3_i      : in  std_logic_vector (2 downto 0);
       funct7_i      : in  std_logic_vector (6 downto 0);
-      --******** Datapath outputs ********
+      -- Data path outputs
       alu_op_o      : out std_logic_vector(4 downto 0));
 end entity;
 
 architecture behavioral of alu_decoder is
 begin
 
-   --Decode ALU operation
+   -- Decode ALU operation
    alu_dec : process(alu_2bit_op_i, funct3_i, funct7_i)is
    begin
-      alu_op_o <= "00000";              --Default value
+      alu_op_o <= "00000";
 
       case alu_2bit_op_i is
-         when "00" =>   -- Load/store/u/j Type always add
+         when "00" =>
             alu_op_o <= add_op;
-         when "01" =>   -- R type
+         when "01" =>
             case funct3_i is
                when "000" =>
                   alu_op_o <= add_op;
@@ -50,7 +50,7 @@ begin
                when others =>
                   alu_op_o <= and_op;
             end case;
-         when "10" =>   -- I Type
+         when "10" =>
             case funct3_i is
                when "000" =>
                   alu_op_o <= add_op;

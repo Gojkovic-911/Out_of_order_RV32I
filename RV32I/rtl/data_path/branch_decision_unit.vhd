@@ -9,8 +9,8 @@ entity branch_decision_unit is
     generic(
         DATA_WIDTH : NATURAL := 32);
     Port (  branch_condition_o  : out std_logic;
-            a_i                 : in STD_LOGIC_VECTOR(DATA_WIDTH-1 DOWNTO 0); -- first operand
-            b_i                 : in STD_LOGIC_VECTOR(DATA_WIDTH-1 DOWNTO 0); -- second operand
+            a_i                 : in STD_LOGIC_VECTOR(DATA_WIDTH-1 DOWNTO 0);
+            b_i                 : in STD_LOGIC_VECTOR(DATA_WIDTH-1 DOWNTO 0);
             funct3_i            : in std_logic_vector(4 downto 0)
             );
 end branch_decision_unit;

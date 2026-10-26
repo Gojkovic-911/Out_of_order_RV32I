@@ -5,21 +5,20 @@ use work.instr_types_pkg.all;
 
 entity LSU is
    generic (DATA_WIDTH : positive := 32;
-            MEM_BYTES  : natural  := 4 ); -- log2(DATA_WIDTH);
+            MEM_BYTES  : natural  := 4 );
     Port (      
     
-      -- Input Data Memory Interface (read/write)
-      data_mem_addr_i   : in  std_logic_vector(DATA_WIDTH-1 downto 0); -- input from ALU, used to calculate byte enable signal
-      data_mem_wdata_i  : in  std_logic_vector(DATA_WIDTH-1 downto 0); -- just passed because the memory can take unaligned address
-      data_mem_rdata_o  : out std_logic_vector(DATA_WIDTH-1 downto 0); -- potentially extended data handed to the RF
+      -- Core side ports
+      data_mem_addr_i   : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+      data_mem_wdata_i  : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+      data_mem_rdata_o  : out std_logic_vector(DATA_WIDTH-1 downto 0);
       
-      -- Output Data Memory Interface (read/write)
-      data_mem_addr_o   : out std_logic_vector(DATA_WIDTH-1 downto 0);  -- Address for data access
-      data_mem_wdata_o  : out std_logic_vector(DATA_WIDTH-1 downto 0);  -- Data to be written to memory
-      data_mem_rdata_i  : in  std_logic_vector(DATA_WIDTH-1 downto 0);  -- Data read from memory
-      data_mem_be_o     : out std_logic_vector(MEM_BYTES-1 downto 0);   -- Byte enable (store strobe)
+      -- Memory side ports
+      data_mem_addr_o   : out std_logic_vector(DATA_WIDTH-1 downto 0);
+      data_mem_wdata_o  : out std_logic_vector(DATA_WIDTH-1 downto 0);
+      data_mem_rdata_i  : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+      data_mem_be_o     : out std_logic_vector(MEM_BYTES-1 downto 0);
       
-      -- Control signals
       lsu_subtype_i     : in  std_logic_vector(4 downto 0)
       );
 end LSU;
@@ -37,8 +36,7 @@ begin
     data_mem_be_o    <= data_mem_be_s;
     data_mem_rdata_o <= extended_load_data_s;
     
-   
-   -- Store instructions
+   -- Store byte enables
    process (lsu_subtype_i, data_mem_addr_i, data_mem_wdata_i) is
    begin
    
@@ -50,7 +48,7 @@ begin
             if (data_mem_addr_i(1 downto 0) = "00") then
                 data_mem_be_s    <= "1111";
                 data_mem_wdata_s <= data_mem_wdata_i; 
-            else -- EXCEPTION
+            else
                data_mem_be_s    <= (others => '0'); 
                data_mem_wdata_s <= (others => '0'); 
             end if;
@@ -64,7 +62,7 @@ begin
                 data_mem_be_s    <= "1100";
                 data_mem_wdata_s <= data_mem_wdata_i(15 downto 0) & (15 downto 0 => '0');
 
-             when others =>  -- EXCEPTION
+             when others =>
                data_mem_be_s    <= (others => '0'); 
                data_mem_wdata_s <= (others => '0'); 
            end case;
@@ -99,7 +97,7 @@ begin
         end case;
     end process;
                
-   -- Load instructions
+   -- Load data extension
    process (lsu_subtype_i, data_mem_addr_i, data_mem_rdata_i) is
    begin
    
@@ -108,8 +106,8 @@ begin
         case lsu_subtype_i is
          when LW =>
             if (data_mem_addr_i(1 downto 0) = "00") then
-                extended_load_data_s <= data_mem_rdata_i; -- passes the read data
-            else -- EXCEPTION
+                extended_load_data_s <= data_mem_rdata_i;
+            else
             end if;
             
          when LH =>
@@ -118,7 +116,7 @@ begin
                 extended_load_data_s <= (31 downto 16 => data_mem_rdata_i(15)) & data_mem_rdata_i(15 downto 0);
              when "10"   => 
                 extended_load_data_s <= (31 downto 16 => data_mem_rdata_i(31)) & data_mem_rdata_i(31 downto 16); 
-             when others =>  -- EXCEPTION
+             when others =>
                 extended_load_data_s <= (others => '0');
            end case;   
            
@@ -128,7 +126,7 @@ begin
                 extended_load_data_s <= (31 downto 16 => '0') & data_mem_rdata_i(15 downto 0); 
              when "10"   => 
                 extended_load_data_s <= (31 downto 16 => '0') & data_mem_rdata_i(31 downto 16);  
-             when others =>  -- EXCEPTION
+             when others =>
                 extended_load_data_s <= (others => '0'); 
            end case;   
            

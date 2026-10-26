@@ -8,12 +8,12 @@ ENTITY ALU IS
     GENERIC(
         WIDTH : NATURAL := 32);
     PORT(
-        a_i    : in STD_LOGIC_VECTOR(WIDTH-1 DOWNTO 0); --first operand
-        b_i    : in STD_LOGIC_VECTOR(WIDTH-1 DOWNTO 0); --second operand
-        op_i   : in STD_LOGIC_VECTOR(4 DOWNTO 0); --operation select
-        res_o  : out STD_LOGIC_VECTOR(WIDTH-1 DOWNTO 0); --result
-        zero_o : out STD_LOGIC; -- result is zero
-        of_o   : out STD_LOGIC); -- overflow occurred
+        a_i    : in STD_LOGIC_VECTOR(WIDTH-1 DOWNTO 0);
+        b_i    : in STD_LOGIC_VECTOR(WIDTH-1 DOWNTO 0);
+        op_i   : in STD_LOGIC_VECTOR(4 DOWNTO 0);
+        res_o  : out STD_LOGIC_VECTOR(WIDTH-1 DOWNTO 0);
+        zero_o : out STD_LOGIC;
+        of_o   : out STD_LOGIC);
 END ALU;
 
 ARCHITECTURE behavioral OF ALU IS
@@ -25,24 +25,19 @@ ARCHITECTURE behavioral OF ALU IS
    
 begin
 
-    -- addition
+    -- Arithmetic and logic results
     add_res <= std_logic_vector(unsigned(a_i) + unsigned(b_i));
-    -- subtraction
     sub_res <= std_logic_vector(unsigned(a_i) - unsigned(b_i));
-    -- and gate
     and_res <= a_i and b_i;
-    -- or gate
     or_res  <= a_i or b_i;  
-    -- xor gate
     xor_res <= a_i xor b_i;  
     
-    -- SLL 
+    -- SLL barrel shifter
     process(a_i, b_i)
         variable temp: std_logic_vector(31 downto 0);
     begin
-        temp := a_i;    -- input value
+        temp := a_i;
         
-        -- Barrel shifter
         if b_i(0) = '1' then temp := temp(30 downto 0) & '0'; end if;
         if b_i(1) = '1' then temp := temp(29 downto 0) & "00"; end if;
         if b_i(2) = '1' then temp := temp(27 downto 0) & "0000"; end if;
@@ -51,13 +46,12 @@ begin
         sll_res <= temp;
     end process;
 
-    -- SRL 
+    -- SRL barrel shifter
     process(a_i, b_i)
         variable temp: std_logic_vector(31 downto 0);
     begin
-        temp := a_i;    -- input value
+        temp := a_i;
         
-        -- Barrel shifter
         if b_i(0) = '1' then temp := '0' & temp(31 downto 1); end if;
         if b_i(1) = '1' then temp := "00" & temp(31 downto 2); end if;
         if b_i(2) = '1' then temp := "0000" & temp(31 downto 4); end if;
@@ -66,15 +60,14 @@ begin
         srl_res <= temp;
     end process;
    
-    -- SRA 
+    -- SRA barrel shifter
     process(a_i, b_i)
         variable temp: std_logic_vector(31 downto 0);
         variable sign_bit: std_logic;
     begin
-        temp     := a_i;      -- input value
-        sign_bit := a_i(31);  -- MSB sign
+        temp     := a_i;
+        sign_bit := a_i(31);
         
-        -- Artithmetic Barrel shifter
         if b_i(0) = '1' then temp := sign_bit & temp(31 downto 1); end if;
         if b_i(1) = '1' then temp := (1 to 2 => sign_bit) & temp(31 downto 2); end if;
         if b_i(2) = '1' then temp := (1 to 4 => sign_bit) & temp(31 downto 4); end if;
@@ -83,7 +76,7 @@ begin
         sra_res <= temp;
     end process;
 
-    -- SLT
+    -- Set less than
     process(a_i, b_i) is
     begin
         if (signed(a_i) < signed(b_i)) then
@@ -93,13 +86,10 @@ begin
         end if;
     end process;
    
-    -- SLTU
     process (a_i, b_i) is
     begin
-        -- default value
         sltu_res <= std_logic_vector(to_unsigned(0, WIDTH));
        
-        -- comparison
         if(unsigned(a_i) < unsigned(b_i)) then
             sltu_res <= std_logic_vector(to_unsigned(1, WIDTH));
         else
@@ -107,13 +97,13 @@ begin
         end if;
     end process;
    
-    -- SELECT RESULT
+    -- Result select
     res_o <= res_s;
     with op_i select
-        res_s <= and_res  when and_op, --and
-                 or_res   when or_op, --or
-                 add_res  when add_op, --add
-                 sub_res  when sub_op, --sub
+        res_s <= and_res  when and_op,
+                 or_res   when or_op,
+                 add_res  when add_op,
+                 sub_res  when sub_op,
                  slt_res  when slt_op,
                  sltu_res when sltu_op,
                  sll_res  when sll_op,
@@ -122,14 +112,11 @@ begin
                  xor_res  when xor_op,
                  (others => '1') when others; 
     
-    
-    -- Zero flag
+    -- Zero and overflow flags
     zero_o <= '1' when res_s = std_logic_vector(to_unsigned(0,WIDTH)) else
              '0';
     
-    -- Overflow: same-sign inputs, sign flip
     of_o <= '1' when ((op_i="00011" and (a_i(WIDTH-1)=b_i(WIDTH-1)) and ((a_i(WIDTH-1) xor res_s(WIDTH-1))='1')) or (op_i="10011" and (a_i(WIDTH-1)=res_s(WIDTH-1)) and ((a_i(WIDTH-1) xor b_i(WIDTH-1))='1'))) else
            '0';
-
 
 END behavioral;

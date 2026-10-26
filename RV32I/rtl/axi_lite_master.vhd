@@ -2,12 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
--- Core data port (valid/ready request + response) to AXI4-Lite master
--- One transaction at a time: a request is accepted only in IDLE, the
--- response comes back as a one cycle pulse on rsp_valid_o.
---   write: AW and W sent together (accepted in any order), then B
---   read : AR, then R
--- AXI response codes are not checked.
+-- Data port to AXI4-Lite
 entity axi_lite_master is
     generic (
         ADDR_WIDTH  : natural := 32;
@@ -15,7 +10,7 @@ entity axi_lite_master is
     );
     port (
         clk             : in  std_logic;
-        reset           : in  std_logic;    -- active low, as the core
+        reset           : in  std_logic;
 
         -- Core side
         req_valid_i     : in  std_logic;
@@ -110,7 +105,7 @@ begin
                             end if;
                         end if;
 
-                    -- Address and data handshakes in any order
+                    -- Handshakes in any order
                     when WRITE =>
                         if (awvalid_s = '1' and m_axi_awready = '1') then
                             awvalid_s   <= '0';

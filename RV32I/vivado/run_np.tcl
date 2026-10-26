@@ -1,7 +1,4 @@
-# Non-project regression (make np)
-# Runs inside xsim on the snapshot built by the Makefile, the program of each
-# test is swapped with compile.sh + restart (the testbench reads it at time 0).
-# Same helper scripts as RISCV.tcl, run from this directory.
+# Non-project regression in xsim
 
 unset -nocomplain env(PYTHONHOME)
 unset -nocomplain env(PYTHONPATH)
@@ -9,8 +6,12 @@ unset -nocomplain env(PYTHONPATH)
 cd [file dirname [file normalize [info script]]]
 
 set tests {}
-foreach d [lsort [glob -nocomplain -types d -directory ../RISCV_tb *test]] {
-    lappend tests [file tail $d]
+if {[info exists env(TEST)] && $env(TEST) ne ""} {
+    set tests [list $env(TEST)]
+} else {
+    foreach d [lsort [glob -nocomplain -types d -directory ../tests *test]] {
+        lappend tests [file tail $d]
+    }
 }
 puts "Found tests: $tests"
 
