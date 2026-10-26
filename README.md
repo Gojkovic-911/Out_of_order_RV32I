@@ -6,20 +6,18 @@ gcc-riscv64-unknown-elf
 
 
 ## Commands
-Output of `make help`; arguments in `<...>` are optional:
+```bash
+# Simulation (TEST=<name>: one test, default all)
+make sim         # <TEST=...>               regression, no project
+make sim-prj     # <TEST=...>               regression, Vivado project
+make res         # <TEST=...>               last results
 
-```
-Simulation (TEST=<name>: one test, default all):
-  make sim        <TEST=...>               regression, no project
-  make sim-prj    <TEST=...>               regression, Vivado project
-  make res        <TEST=...>               last results
-
-FPGA (PROG=<program>: default last compiled test; settings in RV32I/config.mk):
-  make ip                                  package CPU IP
-  make synth      <PROG=...> <PERIOD=...>  CPU synthesis, critical paths
-  make bitstream  <PROG=...>               Zybo bitstream
-  make all        <PROG=...>               sim, then bitstream
-  make clean                               remove generated files
+# FPGA (PROG=<program>: default last compiled test; settings in RV32I/config.mk)
+make ip          #                          package CPU IP
+make synth       # <PROG=...> <PERIOD=...>  CPU synthesis, critical paths
+make bitstream   # <PROG=...>               Zybo bitstream
+make all         # <PROG=...>               sim, then bitstream
+make clean       #                          remove generated files
 ```
 
 ## Configuration
