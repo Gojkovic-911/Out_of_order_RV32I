@@ -3,7 +3,8 @@
 import os
 import sys
 
-TESTS = sys.argv[1] if len(sys.argv) > 1 else 'RV32I/tests'
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+TESTS = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 'out', 'tests')
 COLS = ['cycles', 'instructions', 'ipc', 'commit%', 'head_wait%', 'rob_empty%', 'refill%',
         'mispredicts', 'jalr', 'rob_full', 'freelist', 'lsq_full', 'iq_full', 'ex_busy']
 

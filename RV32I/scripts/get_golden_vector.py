@@ -59,8 +59,10 @@ def run_interpreter(asm_file: str, out_regs: str):
 
 if __name__ == "__main__":
     testname = sys.argv[1]
-    asm = f"../tests/{testname}/{testname}.s"
-    regs = f"../tests/{testname}/golden_vector_regs.txt"
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+    asm = f"{root}/RV32I/tb/tests/{testname}/{testname}.s"
+    regs = f"{root}/out/tests/{testname}/golden_vector_regs.txt"
+    os.makedirs(os.path.dirname(regs), exist_ok=True)
     # Reuse golden of unchanged source
     digest = hashlib.sha256(open(asm, 'rb').read()).hexdigest()
     sha = regs.replace('.txt', '.sha')

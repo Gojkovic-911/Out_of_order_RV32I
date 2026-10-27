@@ -4,7 +4,7 @@ set testname [lindex $argv 0]
 
 set dp [expr {[info exists ::dp] && $::dp ne "" ? $::dp : "/riscv_top_tb/TOP_RISCV_1/data_path_1"}]
 
-set dump_file [open "../tests/$::test/sim_vector_regs.txt" w]
+set dump_file [open "$::tests_out/$::test/sim_vector_regs.txt" w]
 
 puts $dump_file "========================================="
 puts $dump_file "PHYSICAL REGISTERS (phys_regs_s)"
@@ -34,7 +34,7 @@ close $dump_file
 # Cycle accounting, regression testbench only
 if {[llength [get_objects -quiet /riscv_top_tb/cnt_at_commit_s]] > 0} {
     set names {cycles instructions rob_empty refill mispredicts jalr rob_full freelist lsq_full iq_full ex_busy}
-    set ipc_file [open "../tests/$::test/ipc.txt" w]
+    set ipc_file [open "$::tests_out/$::test/ipc.txt" w]
     for {set i 0} {$i < [llength $names]} {incr i} {
         set v($i) [get_value -radix unsigned /riscv_top_tb/cnt_at_commit_s($i)]
         puts $ipc_file "[lindex $names $i] $v($i)"

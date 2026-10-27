@@ -1,31 +1,8 @@
-*.o
-*.bin
-*.vcd
-*.log
-*.jou
-*.pb
-*.bit
-*.str
-.xpr
-*.runs/
-*.cache/
-*.ip_user_files/
-*.sim/
-RISCV_project
+# Everything generated
+out/
 .Xil/
-*.txt
-cmp
-*.hex
-*.dis
-*.sha
-sim_np
-ip_package
-ip_repo
-synth_out
-zybo_project
-zybo_sim
-bitstream_out
-sweep_out
-SHA3_platform
+*.jou
+*.log
 __pycache__
-*.elf
+# Local only
+SHA3_platform

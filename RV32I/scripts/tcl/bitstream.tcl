@@ -1,14 +1,14 @@
 # Zybo bitstream build
 
 set script_dir [file dirname [file normalize [info script]]]
-cd $script_dir
 source $script_dir/config.tcl
+cd $out_dir
 source $script_dir/platform_bd.tcl
 source $script_dir/imem_mmi.tcl
 
 set prog    [file normalize [lindex $argv 0]]
-set prj_dir [file normalize ./zybo_project]
-set out     [file normalize ./bitstream_out]
+set prj_dir $out_dir/zybo_project
+set out     $out_dir/bitstream
 set bd_name design_1
 
 if {![file exists $prog]} {
@@ -16,7 +16,7 @@ if {![file exists $prog]} {
 }
 
 create_project zybo_project $prj_dir -part $part -force
-set_property ip_repo_paths [file normalize ../ip_repo] [current_project]
+set_property ip_repo_paths $out_dir/ip_repo [current_project]
 update_ip_catalog
 
 create_platform_bd $bd_name $prog
@@ -25,7 +25,7 @@ set bd_file [get_files $bd_name.bd]
 generate_target all $bd_file
 add_files -norecurse [make_wrapper -files $bd_file -top]
 set_property top ${bd_name}_wrapper [current_fileset]
-add_files -fileset constrs_1 -norecurse $script_dir/zybo.xdc
+add_files -fileset constrs_1 -norecurse $src/constraints/zybo.xdc
 update_compile_order -fileset sources_1
 
 # Run directives for IMPL_EFFORT

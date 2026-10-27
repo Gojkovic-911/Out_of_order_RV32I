@@ -10,9 +10,10 @@ import time
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 BASE_CFG = os.path.join(ROOT, 'RV32I', 'config.mk')
-TESTS = os.path.join(ROOT, 'RV32I', 'tests')
-SYNTH = os.path.join(ROOT, 'RV32I', 'vivado', 'synth_out')
-OUT = os.path.join(ROOT, 'RV32I', 'vivado', 'sweep_out')
+TESTS_SRC = os.path.join(ROOT, 'RV32I', 'tb', 'tests')
+TESTS = os.path.join(ROOT, 'out', 'tests')
+SYNTH = os.path.join(ROOT, 'out', 'synth')
+OUT = os.path.join(ROOT, 'out', 'sweep')
 
 # Sizes, min to max
 SPACE = {
@@ -104,9 +105,9 @@ def sim_one(p):
     log = os.path.join(OUT, n + '_sim.log')
     _, secs = run(['make', 'sim', 'CONFIG=' + cfg], log)
     ipcs, passed, total = [], 0, 0
-    for t in sorted(os.listdir(TESTS)):
+    for t in sorted(os.listdir(TESTS_SRC)):
         d = os.path.join(TESTS, t)
-        if not (os.path.isdir(d) and t.endswith('test')):
+        if not (os.path.isdir(os.path.join(TESTS_SRC, t)) and t.endswith('test')):
             continue
         total += 1
         if grab(os.path.join(d, 'comparison_results.txt'), r'VERDICT:\s*(\w+)') == 'PASS':

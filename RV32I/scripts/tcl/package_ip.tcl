@@ -1,12 +1,12 @@
 # Package CPU as IP
 
 set script_dir [file dirname [file normalize [info script]]]
-cd $script_dir
 
 source $script_dir/config.tcl
-set rtl      [file normalize ../rtl]
-set ip_dir   [file normalize ../ip_repo/CPU]
-set prj_dir  [file normalize ./ip_package]
+cd $out_dir
+set rtl      $src/rtl
+set ip_dir   $out_dir/ip_repo/CPU
+set prj_dir  $out_dir/ip_package
 
 create_project ip_package $prj_dir -part $part -force
 

@@ -1,7 +1,16 @@
-# Load config.mk into cfg
+# Source and output paths
+set root      [file normalize [file join [file dirname [info script]] ../../..]]
+set src       $root/RV32I
+set scripts   $src/scripts
+set tests_src $src/tb/tests
+set out_dir   $root/out
+set tests_out $out_dir/tests
+set prog_file $tests_out/assembly_code_bin.txt
+file mkdir $tests_out
 
+# Load config.mk into cfg
 array set cfg {}
-set cfg_file [file normalize [file join [file dirname [info script]] ../config.mk]]
+set cfg_file $src/config.mk
 if {[info exists env(CONFIG_MK)]} {
     set cfg_file $env(CONFIG_MK)
 }

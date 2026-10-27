@@ -60,7 +60,7 @@ Timing is met at 50 MHz (worst slack +7.63 ns), maximum clock about 80 MHz; esti
 
 ## Adding a new test
 
-1. Open a new folder with the name of your test in `RV32I/tests/`
+1. Open a new folder with the name of your test in `RV32I/tb/tests/`
 2. Put `test_name.s` file into it
 3. Run `make sim TEST=test_name`
 
@@ -70,10 +70,12 @@ Vivado 2023.2, 16-thread machine, 16 GB RAM, 3-4 parallel jobs:
 
 | Command | Time |
 |---|---:|
-| `make sim` (11 tests) | 2 min 09 s |
+| `make sim` (13 tests, golden vectors cached) | 27 s |
 | `make sim-prj` (11 tests) | 3 min 03 s |
-| `make synth` (CPU only) | 5 min 55 s |
-| `make bitstream` | ~ 11 min |
+| `make sim-bd` (13 tests) | 8 min |
+| `make synth` (CPU only) | 3 min 22 s |
+| `make bitstream` | ~ 7 min |
+| `make fw-update` | 10 s |
 
 ## TODO
 

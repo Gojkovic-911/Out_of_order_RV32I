@@ -3,11 +3,12 @@
 # Compare registers with golden
 
 TEST_NAME=$1
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 
-GOLDEN_REGS_FILE="../tests/$TEST_NAME/golden_vector_regs.txt"
-SIM_REGS_FILE="../tests/$TEST_NAME/sim_vector_regs.txt"
+GOLDEN_REGS_FILE="$ROOT/out/tests/$TEST_NAME/golden_vector_regs.txt"
+SIM_REGS_FILE="$ROOT/out/tests/$TEST_NAME/sim_vector_regs.txt"
 
-RESULT_FILE="../tests/$TEST_NAME/comparison_results.txt"
+RESULT_FILE="$ROOT/out/tests/$TEST_NAME/comparison_results.txt"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'

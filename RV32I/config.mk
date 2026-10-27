@@ -1,5 +1,5 @@
 # CPU and platform configuration, one place for every tool.
-# Read by the Makefile (include) and by the Vivado scripts (vivado/config.tcl).
+# Read by the Makefile (include) and by the Vivado scripts (scripts/tcl/config.tcl).
 # Format: NAME = value (comments on their own line, never after a value).
 # Only the defaults are verified by the regression.
 

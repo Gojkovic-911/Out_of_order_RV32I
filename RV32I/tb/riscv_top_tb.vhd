@@ -23,7 +23,7 @@ generic (
         WADDR             : natural   := 14;
         DATA_MEM_MAX_WAIT : natural   := 3;
         -- Program file to run
-        PROGRAM_FILE      : string    := "../../../../../../tests/assembly_code_bin.txt"
+        PROGRAM_FILE      : string    := "../../../../../tests/assembly_code_bin.txt"
     );
 end entity;
 

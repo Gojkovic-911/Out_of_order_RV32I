@@ -1,10 +1,12 @@
 #!/bin/bash
 
 TEST_NAME=$1
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+mkdir -p "$ROOT/out/tests/$TEST_NAME"
 
-ASM_FILE="../tests/$TEST_NAME/$TEST_NAME.s"
-BIN_FILE="../tests/assembly_code_bin.txt"
-DIS_FILE="../tests/$TEST_NAME/$TEST_NAME.dis"
+ASM_FILE="$ROOT/RV32I/tb/tests/$TEST_NAME/$TEST_NAME.s"
+BIN_FILE="$ROOT/out/tests/assembly_code_bin.txt"
+DIS_FILE="$ROOT/out/tests/$TEST_NAME/$TEST_NAME.dis"
 
 echo "Compiling: $TEST_NAME"
 

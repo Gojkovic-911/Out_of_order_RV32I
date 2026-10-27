@@ -1,11 +1,11 @@
 # CPU out-of-context synthesis
 
 set script_dir [file dirname [file normalize [info script]]]
-cd $script_dir
 
 source $script_dir/config.tcl
-set rtl     [file normalize ../rtl]
-set out     [file normalize ./synth_out]
+cd $out_dir
+set rtl     $src/rtl
+set out     $out_dir/synth
 set prog    [file normalize [lindex $argv 0]]
 set period  [expr {[llength $argv] > 1 ? [lindex $argv 1] : 1000.0 / $cpu_clk_mhz}]
 file mkdir $out
