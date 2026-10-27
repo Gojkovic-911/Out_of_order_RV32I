@@ -18,7 +18,6 @@ OUT = os.path.join(ROOT, 'RV32I', 'vivado', 'sweep_out')
 SPACE = {
     'ROB_DEPTH': [8, 16, 32, 64],
     'IQ_DEPTH':  [4, 8, 16],
-    'RS_DEPTH':  [2, 4, 8, 16],
     'LSQ_DEPTH': [4, 8, 16],
 }
 KEYS = list(SPACE)

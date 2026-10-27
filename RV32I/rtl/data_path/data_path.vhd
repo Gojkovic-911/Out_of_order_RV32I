@@ -14,8 +14,6 @@ entity data_path is
         ROB_ADDR_BITS   : natural  := 6;
         IQ_DEPTH        : natural  := 16;
         IQ_BITS         : natural  := 4;
-        RS_DEPTH        : natural  := 16;
-        RS_BITS         : natural  := 4;
         LSQ_DEPTH       : natural  := 16;
         LSQ_BITS        : natural  := 4
         );
@@ -68,7 +66,7 @@ entity data_path is
         
         misspredict_o           : out std_logic;
         
-        rs_full_o               : out std_logic;
+        ex_busy_o               : out std_logic;
         lsq_full_o              : out std_logic
         );
 
@@ -186,11 +184,9 @@ architecture Behavioral of data_path is
     -- Execute signals
     signal ex_valid_s                   : std_logic;
     signal alu_valid_s                  : std_logic;
-    signal alu_full_s                   : std_logic;
     signal alu_op_a_s                   : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal alu_op_b_s                   : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal branch_valid_s               : std_logic;
-    signal branch_full_s                : std_logic;
     signal lsq_fill_valid_s             : std_logic;
     signal lsq_fill_addr_s              : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal alu_cdb_req_s                : std_logic;
@@ -229,7 +225,7 @@ architecture Behavioral of data_path is
     signal branch_taken_s          : std_logic;
     signal branch_taken_valid_s    : std_logic;
     signal branch_taken_idx_s      : std_logic_vector(ROB_ADDR_BITS-1 downto 0);
-    signal execute_rs_full_s       : std_logic;
+    signal ex_busy_s               : std_logic;
     
     type phys_reg_array_t is array (0 to NUM_PHYS_REGS-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
     signal phys_regs_s : phys_reg_array_t := (others => (others => '0'));
@@ -608,9 +604,10 @@ begin
     
     lsq_full_o          <= lsq_full_s and rename_is_mem_s and rename_instr_valid_s;
     
-    rs_full_o <= execute_rs_full_s and execute_valid_s;
+    ex_busy_o <= ex_busy_s;
     
-    ex_valid_s <= execute_valid_s and (not stall_ex_i) and (not flush_pipe_i);
+    -- Unit valids do not depend on the stall (it comes from the CDB grant)
+    ex_valid_s <= execute_valid_s and (not flush_pipe_i);
 
     -- IS/EX steering to units
     u_ex_router : entity work.ex_router
@@ -626,9 +623,8 @@ begin
             imm_i               => execute_imm_s,
             pc_i                => execute_pc_reg_s,
             rob_idx_i           => execute_rob_idx_s,
-            alu_full_i          => alu_full_s,
-            branch_full_i       => branch_full_s,
-            rs_full_o           => execute_rs_full_s,
+            alu_grant_i         => alu_cdb_grant_s,
+            ex_busy_o           => ex_busy_s,
             alu_valid_o         => alu_valid_s,
             alu_op_a_o          => alu_op_a_s,
             alu_op_b_o          => alu_op_b_s,
@@ -643,29 +639,15 @@ begin
         generic map (
             DATA_WIDTH      => DATA_WIDTH,
             PHYS_ADDR_BITS  => PHYS_ADDR_BITS,
-            RS_DEPTH        => RS_DEPTH,
-            RS_BITS         => RS_BITS,
             ROB_ADDR_BITS   => ROB_ADDR_BITS
         )
         port map (
-            clk             => clk,
-            reset           => reset,
             valid_i         => alu_valid_s,
-            rs1_addr_i      => execute_rs1_addr_s,
-            rs2_addr_i      => execute_rs2_addr_s,
-            rs1_ready_i     => execute_rs1_ready_s,
-            rs2_ready_i     => execute_rs2_ready_s,
             op_a_i          => alu_op_a_s,
             op_b_i          => alu_op_b_s,
-            rd_addr_i       => execute_rd_addr_s,
             subtype_i       => execute_instr_subtype_s,
+            rd_addr_i       => execute_rd_addr_s,
             rob_idx_i       => execute_rob_idx_s,
-            instruction_i   => execute_instruction,
-            full_o          => alu_full_s,
-            flush_i         => flush_pipe_i,
-            cdb_valid_i     => cdb_valid_s,
-            cdb_addr_i      => cdb_rd_addr_s,
-            cdb_data_i      => cdb_data_s,
             cdb_req_o       => alu_cdb_req_s,
             cdb_grant_i     => alu_cdb_grant_s,
             cdb_data_o      => alu_cdb_data_s,
@@ -676,29 +658,17 @@ begin
     u_branch_unit : entity work.branch_unit
         generic map (
             DATA_WIDTH      => DATA_WIDTH,
-            PHYS_ADDR_BITS  => PHYS_ADDR_BITS,
-            RS_DEPTH        => RS_DEPTH,
-            RS_BITS         => RS_BITS,
             ROB_ADDR_BITS   => ROB_ADDR_BITS
         )
         port map (
             clk             => clk,
             reset           => reset,
+            flush_i         => flush_pipe_i,
             valid_i         => branch_valid_s,
-            rs1_addr_i      => execute_rs1_addr_s,
-            rs2_addr_i      => execute_rs2_addr_s,
-            rs1_ready_i     => execute_rs1_ready_s,
-            rs2_ready_i     => execute_rs2_ready_s,
             rs1_data_i      => execute_rs1_data_s,
             rs2_data_i      => execute_rs2_data_s,
             subtype_i       => execute_instr_subtype_s,
             rob_idx_i       => execute_rob_idx_s,
-            instruction_i   => execute_instruction,
-            full_o          => branch_full_s,
-            flush_i         => flush_pipe_i,
-            cdb_valid_i     => cdb_valid_s,
-            cdb_addr_i      => cdb_rd_addr_s,
-            cdb_data_i      => cdb_data_s,
             taken_valid_o   => branch_taken_valid_s,
             taken_o         => branch_taken_s,
             taken_idx_o     => branch_taken_idx_s

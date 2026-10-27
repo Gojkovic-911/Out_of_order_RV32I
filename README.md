@@ -24,7 +24,7 @@ make clean       #                          remove generated files
 
 `RV32I/config.mk` holds the whole configuration, passed to every tool (simulation, synthesis, IP, block design):
 
-- core sizes (generics in rtl): `NUM_PHYS_REGS`, `ROB_DEPTH`, `IQ_DEPTH`, `RS_DEPTH`, `LSQ_DEPTH` ...
+- core sizes (generics in rtl): `NUM_PHYS_REGS`, `ROB_DEPTH`, `IQ_DEPTH`, `LSQ_DEPTH` ...
 - simulation: `DATA_MEM_MAX_WAIT` (wait cycles of the AXI data memory model)
 - FPGA: `PART`, `MAX_JOBS`, clocks, address map
 
@@ -34,11 +34,11 @@ make clean       #                          remove generated files
 
 | Resource | Used | Available | % |
 |---|---:|---:|---:|
-| LUT (of which LUTRAM) | 6 327 (174) | 17 600 | 36 % |
-| Flip-flop | 6 792 | 35 200 | 19 % |
+| LUT (of which LUTRAM) | 4 145 (174) | 17 600 | 24 % |
+| Flip-flop | 3 673 | 35 200 | 10 % |
 | Block RAM (36 Kb) | 4.5 | 60 | 8 % |
 
-Timing is met at 50 MHz (worst slack +3.65 ns), maximum clock about 61 MHz; estimated power 0.140 W.
+Timing is met at 50 MHz (worst slack +6.90 ns), maximum clock about 76 MHz; estimated power 0.125 W.
 
 ### FPGA build (Zybo)
 
@@ -48,12 +48,12 @@ Whole Zybo platform:
 
 | Resource | Used | Available | % |
 |---|---:|---:|---:|
-| LUT (of which LUTRAM) | 6 580 (176) | 17 600 | 37 % |
-| Flip-flop | 6 891 | 35 200 | 20 % |
+| LUT (of which LUTRAM) | 4 173 (176) | 17 600 | 24 % |
+| Flip-flop | 3 900 | 35 200 | 11 % |
 | Block RAM (36 Kb) | 8.5 | 60 | 14 % |
 | MMCM / IOB | 1 / 6 | 2 / 100 | |
 
-Timing is met at 50 MHz (worst slack +3.39 ns), maximum clock about 60 MHz; estimated power 0.248 W (0.106 W clock wizard MMCM).
+Timing is met at 50 MHz (worst slack +7.63 ns), maximum clock about 80 MHz; estimated power 0.236 W (0.106 W clock wizard MMCM).
 
 ## Adding a new test
 
@@ -69,13 +69,15 @@ Vivado 2023.2, 16-thread machine, 16 GB RAM, 3-4 parallel jobs:
 |---|---:|
 | `make sim-prj` (11 tests) | 3 min 03 s |
 | `make sim` (11 tests) | 2 min 09 s |
-| `make synth` (CPU only) | 9 min 42 s |
-| `make bitstream` | ~ 13 min |
+| `make synth` (CPU only) | 5 min 55 s |
+| `make bitstream` | ~ 11 min |
 
 ## TODO
 
 1. LED blink firmware: a program that writes the GPIO (`0x4000_0000`), baked into the bitstream, to run the core on the Zybo
 2. Optimize critical paths
 3. SHA3 platform: add a SHA3 accelerator with the DMA
-4. More ALUs (useful only with multi-issue) and several CDB ports; with single issue a second single-cycle ALU stays idle
+4. More ALUs (useful with multiple issue)
 5. Backpressure through valid/ready per stage instead of separate stall logic: whoever is blocked drops ready, everything behind it holds and writes nothing, everything ahead keeps moving
+6. Instruction memory on the other side of AXI, loaded over JTAG (no rebuild of the bitstream to change the program)
+7. Exception support

@@ -32,7 +32,7 @@ if {$cfg(IMPL_EFFORT) eq "performance"} {
     create_ip_run $bd_file
     foreach r [get_runs -filter {IS_SYNTHESIS}] {
         set_property STEPS.SYNTH_DESIGN.ARGS.DIRECTIVE PerformanceOptimized $r
-        set_property STEPS.SYNTH_DESIGN.ARGS.RETIMING  true                 $r
+        set_property STEPS.SYNTH_DESIGN.ARGS.GLOBAL_RETIMING on             $r
     }
     set impl [get_runs impl_1]
     set_property STEPS.OPT_DESIGN.ARGS.DIRECTIVE                Explore           $impl
@@ -55,6 +55,7 @@ open_run impl_1
 report_utilization    -file $out/utilization.rpt
 report_timing_summary -file $out/timing.rpt
 write_paths $out/paths.txt
+report_power -file $out/power.rpt
 file copy -force [glob $prj_dir/zybo_project.runs/impl_1/*.bit] $out/
 puts "Bitstream: [glob $out/*.bit]"
 

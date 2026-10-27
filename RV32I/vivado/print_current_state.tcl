@@ -30,7 +30,7 @@ puts $dump_file "========================================="
 close $dump_file
 
 # Cycle accounting up to the last commit
-set names {cycles instructions rob_empty refill mispredicts jalr rob_full freelist lsq_full iq_full rs_full}
+set names {cycles instructions rob_empty refill mispredicts jalr rob_full freelist lsq_full iq_full ex_busy}
 set ipc_file [open "../tests/$::test/ipc.txt" w]
 for {set i 0} {$i < [llength $names]} {incr i} {
     set v($i) [get_value -radix unsigned /riscv_top_tb/cnt_at_commit_s($i)]

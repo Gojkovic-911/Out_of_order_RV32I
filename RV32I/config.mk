@@ -4,7 +4,7 @@
 # Only the defaults are verified by the regression.
 
 # ---- Core: generics of riscv_top_mem (IP, synthesis) and riscv_top_tb ----
-CORE_GENERICS  = DATA_WIDTH MEM_BYTES ARCH_ADDR_BITS NUM_PHYS_REGS ROB_DEPTH IQ_DEPTH RS_DEPTH LSQ_DEPTH WADDR
+CORE_GENERICS  = DATA_WIDTH MEM_BYTES ARCH_ADDR_BITS NUM_PHYS_REGS ROB_DEPTH IQ_DEPTH LSQ_DEPTH WADDR
 
 # Data width in bits and bytes
 DATA_WIDTH     = 32
@@ -17,8 +17,6 @@ NUM_PHYS_REGS  = 64
 ROB_DEPTH      = 64
 # Instruction queue entries
 IQ_DEPTH       = 16
-# Reservation station entries per unit
-RS_DEPTH       = 16
 # Load/store queue entries
 LSQ_DEPTH      = 16
 # Instruction memory of 2^WADDR bytes (the testbench data memory too)

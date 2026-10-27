@@ -10,7 +10,6 @@ entity riscv_top is
             NUM_PHYS_REGS  : positive := 64;
             ROB_DEPTH      : positive := 64;
             IQ_DEPTH       : positive := 16;
-            RS_DEPTH       : positive := 16;
             LSQ_DEPTH      : positive := 16);
    port(
       -- Clock and reset
@@ -47,7 +46,6 @@ architecture structural of riscv_top is
     constant PHYS_ADDR_BITS : natural := integer(ceil(log2(real(NUM_PHYS_REGS))));
     constant ROB_ADDR_BITS  : natural := integer(ceil(log2(real(ROB_DEPTH))));
     constant IQ_BITS        : natural := integer(ceil(log2(real(IQ_DEPTH))));
-    constant RS_BITS        : natural := integer(ceil(log2(real(RS_DEPTH))));
     constant LSQ_BITS       : natural := integer(ceil(log2(real(LSQ_DEPTH))));
 
     signal instruction_s      : std_logic_vector(31 downto 0);
@@ -74,7 +72,7 @@ architecture structural of riscv_top is
     signal free_list_fifo_empty_s   : std_logic;
     signal iq_full_s                : std_logic;
     
-    signal rs_full_s                : std_logic;
+    signal ex_busy_s                : std_logic;
     signal misspredict_s            : std_logic;    
     signal pc_next_sel_s            : std_logic;    
     signal flush_pipe_s             : std_logic;
@@ -103,8 +101,6 @@ begin
             ROB_ADDR_BITS  => ROB_ADDR_BITS,
             IQ_DEPTH       => IQ_DEPTH,
             IQ_BITS        => IQ_BITS,
-            RS_DEPTH       => RS_DEPTH,
-            RS_BITS        => RS_BITS,
             LSQ_DEPTH      => LSQ_DEPTH,
             LSQ_BITS       => LSQ_BITS)
         port map (
@@ -150,7 +146,7 @@ begin
             iq_full_o                => iq_full_s,
             misspredict_o            => misspredict_s, 
             
-            rs_full_o               => rs_full_s,
+            ex_busy_o               => ex_busy_s,
             lsq_full_o              => lsq_full_s
             );
 
@@ -176,7 +172,7 @@ begin
             free_list_fifo_empty_i   => free_list_fifo_empty_s,
             iq_full_i                => iq_full_s,
          
-            rs_full_i                => rs_full_s,
+            ex_busy_i                => ex_busy_s,
             lsq_full_i               => lsq_full_s,
             misspredict_i            => misspredict_s, 
             

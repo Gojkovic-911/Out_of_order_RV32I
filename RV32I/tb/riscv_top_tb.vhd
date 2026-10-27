@@ -19,7 +19,6 @@ generic (
         NUM_PHYS_REGS     : positive  := 64;
         ROB_DEPTH         : positive  := 64;
         IQ_DEPTH          : positive  := 16;
-        RS_DEPTH          : positive  := 16;
         LSQ_DEPTH         : positive  := 16;
         WADDR             : natural   := 14;
         DATA_MEM_MAX_WAIT : natural   := 3;
@@ -109,7 +108,6 @@ begin
          NUM_PHYS_REGS  => NUM_PHYS_REGS,
          ROB_DEPTH      => ROB_DEPTH,
          IQ_DEPTH       => IQ_DEPTH,
-         RS_DEPTH       => RS_DEPTH,
          LSQ_DEPTH      => LSQ_DEPTH)
       port map (
          clk   => clk,
@@ -168,7 +166,7 @@ begin
    end process;
 
    -- Counters: 0 cycles, 1 commits, 2 rob_empty, 3 refill, 4 mispredicts, 5 jalr,
-   -- 6 rob_full, 7 freelist, 8 lsq_full, 9 iq_full, 10 rs_full
+   -- 6 rob_full, 7 freelist, 8 lsq_full, 9 iq_full, 10 ex_busy
    cycle_count: process(clk)
       alias commit_valid is <<signal .riscv_top_tb.TOP_RISCV_1.data_path_1.rob_commit_valid_s : std_logic>>;
       alias rob_empty    is <<signal .riscv_top_tb.TOP_RISCV_1.data_path_1.rob_empty_s : std_logic>>;
@@ -180,7 +178,7 @@ begin
       alias fl_empty     is <<signal .riscv_top_tb.TOP_RISCV_1.free_list_fifo_empty_s : std_logic>>;
       alias lsq_full     is <<signal .riscv_top_tb.TOP_RISCV_1.lsq_full_s : std_logic>>;
       alias iq_full      is <<signal .riscv_top_tb.TOP_RISCV_1.iq_full_s : std_logic>>;
-      alias rs_full      is <<signal .riscv_top_tb.TOP_RISCV_1.rs_full_s : std_logic>>;
+      alias ex_busy      is <<signal .riscv_top_tb.TOP_RISCV_1.ex_busy_s : std_logic>>;
       variable c      : cnt_t := (others => 0);
       variable refill : boolean := false;
       procedure inc(i : natural; cond : boolean) is
@@ -206,7 +204,7 @@ begin
          inc(7, fl_empty = '1' and stall_rn = '1');
          inc(8, lsq_full = '1');
          inc(9, iq_full = '1');
-         inc(10, rs_full = '1');
+         inc(10, ex_busy = '1');
          cnt_s <= c;
          if commit_valid = '1' then
             cnt_at_commit_s <= c;

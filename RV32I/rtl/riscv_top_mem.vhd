@@ -10,7 +10,6 @@ entity riscv_top_mem is
             NUM_PHYS_REGS  : positive := 64;
             ROB_DEPTH      : positive := 64;
             IQ_DEPTH       : positive := 16;
-            RS_DEPTH       : positive := 16;
             LSQ_DEPTH      : positive := 16;
             WADDR          : natural  := 14;
             -- Program loaded at synthesis
@@ -66,7 +65,6 @@ begin
          NUM_PHYS_REGS  => NUM_PHYS_REGS,
          ROB_DEPTH      => ROB_DEPTH,
          IQ_DEPTH       => IQ_DEPTH,
-         RS_DEPTH       => RS_DEPTH,
          LSQ_DEPTH      => LSQ_DEPTH
       )
       port map (

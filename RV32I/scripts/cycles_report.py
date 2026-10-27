@@ -5,7 +5,7 @@ import sys
 
 TESTS = sys.argv[1] if len(sys.argv) > 1 else 'RV32I/tests'
 COLS = ['cycles', 'instructions', 'ipc', 'commit%', 'head_wait%', 'rob_empty%', 'refill%',
-        'mispredicts', 'jalr', 'rob_full', 'freelist', 'lsq_full', 'iq_full', 'rs_full']
+        'mispredicts', 'jalr', 'rob_full', 'freelist', 'lsq_full', 'iq_full', 'ex_busy']
 
 print(('%-16s' % 'test') + ''.join('%12s' % c for c in COLS))
 for t in sorted(os.listdir(TESTS)):

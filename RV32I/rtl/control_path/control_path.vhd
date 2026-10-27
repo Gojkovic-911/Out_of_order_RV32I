@@ -42,7 +42,7 @@ entity control_path is
         rob_full_i              : in std_logic;
         free_list_fifo_empty_i  : in std_logic;
         iq_full_i               : in std_logic;
-        rs_full_i               : in std_logic;
+        ex_busy_i               : in std_logic;
         lsq_full_i              : in std_logic;
         misspredict_i           : in std_logic
         
@@ -208,7 +208,7 @@ begin
                                 NONE_L;
     
     -- Stall generation
-    stall:process (rob_full_i, free_list_fifo_empty_i, rename_rd_we_s, iq_full_i, rs_full_i, lsq_full_i) is
+    stall:process (rob_full_i, free_list_fifo_empty_i, rename_rd_we_s, iq_full_i, ex_busy_i, lsq_full_i) is
     begin
         stall_if_o      <= '0';
         stall_id_s      <= '0';
@@ -231,7 +231,7 @@ begin
             stall_is_s <= '1';
         end if;          
         
-        if(rs_full_i = '1') then
+        if(ex_busy_i = '1') then
             stall_ex_s    <= '1';
             stall_iq_is_o <= '1';
         end if;

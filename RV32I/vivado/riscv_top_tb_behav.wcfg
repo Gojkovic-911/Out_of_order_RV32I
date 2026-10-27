@@ -546,9 +546,9 @@
          <obj_property name="ElementShortName">cdb_rob_idx_o[5:0]</obj_property>
          <obj_property name="ObjectShortName">cdb_rob_idx_o[5:0]</obj_property>
       </wvobject>
-      <wvobject type="logic" fp_name="/riscv_top_tb/TOP_RISCV_1/data_path_1/u_ex_router/rs_full_o">
-         <obj_property name="ElementShortName">rs_full_o</obj_property>
-         <obj_property name="ObjectShortName">rs_full_o</obj_property>
+      <wvobject type="logic" fp_name="/riscv_top_tb/TOP_RISCV_1/data_path_1/u_ex_router/ex_busy_o">
+         <obj_property name="ElementShortName">ex_busy_o</obj_property>
+         <obj_property name="ObjectShortName">ex_busy_o</obj_property>
       </wvobject>
       <wvobject type="logic" fp_name="/riscv_top_tb/TOP_RISCV_1/data_path_1/u_branch_unit/taken_valid_o">
          <obj_property name="ElementShortName">taken_valid_o</obj_property>
@@ -561,42 +561,6 @@
       <wvobject type="array" fp_name="/riscv_top_tb/TOP_RISCV_1/data_path_1/u_branch_unit/taken_idx_o">
          <obj_property name="ElementShortName">taken_idx_o[5:0]</obj_property>
          <obj_property name="ObjectShortName">taken_idx_o[5:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/riscv_top_tb/TOP_RISCV_1/data_path_1/u_branch_unit/branch_a_s">
-         <obj_property name="ElementShortName">branch_a_s[31:0]</obj_property>
-         <obj_property name="ObjectShortName">branch_a_s[31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/riscv_top_tb/TOP_RISCV_1/data_path_1/u_branch_unit/branch_b_s">
-         <obj_property name="ElementShortName">branch_b_s[31:0]</obj_property>
-         <obj_property name="ObjectShortName">branch_b_s[31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/riscv_top_tb/TOP_RISCV_1/data_path_1/u_alu_unit/rs_s">
-         <obj_property name="ElementShortName">rs_s[0:15]</obj_property>
-         <obj_property name="ObjectShortName">rs_s[0:15]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/riscv_top_tb/TOP_RISCV_1/data_path_1/u_alu_unit/alu_a_s">
-         <obj_property name="ElementShortName">alu_a_s[31:0]</obj_property>
-         <obj_property name="ObjectShortName">alu_a_s[31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/riscv_top_tb/TOP_RISCV_1/data_path_1/u_alu_unit/alu_b_s">
-         <obj_property name="ElementShortName">alu_b_s[31:0]</obj_property>
-         <obj_property name="ObjectShortName">alu_b_s[31:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/riscv_top_tb/TOP_RISCV_1/data_path_1/u_alu_unit/alu_op_s">
-         <obj_property name="ElementShortName">alu_op_s[4:0]</obj_property>
-         <obj_property name="ObjectShortName">alu_op_s[4:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/riscv_top_tb/TOP_RISCV_1/data_path_1/u_alu_unit/alu_result_s">
-         <obj_property name="ElementShortName">alu_result_s[31:0]</obj_property>
-         <obj_property name="ObjectShortName">alu_result_s[31:0]</obj_property>
-      </wvobject>
-      <wvobject type="logic" fp_name="/riscv_top_tb/TOP_RISCV_1/data_path_1/u_alu_unit/free_found_s">
-         <obj_property name="ElementShortName">free_found_s</obj_property>
-         <obj_property name="ObjectShortName">free_found_s</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/riscv_top_tb/TOP_RISCV_1/data_path_1/u_alu_unit/free_addr_s">
-         <obj_property name="ElementShortName">free_addr_s[3:0]</obj_property>
-         <obj_property name="ObjectShortName">free_addr_s[3:0]</obj_property>
       </wvobject>
    </wvobject>
    <wvobject type="logic" fp_name="/riscv_top_tb/TOP_RISCV_1/data_path_1/rob_branch_addr_valid_s">

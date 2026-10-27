@@ -18,9 +18,9 @@ entity ex_router is
         pc_i                : in  std_logic_vector(DATA_WIDTH-1 downto 0);
         rob_idx_i           : in  std_logic_vector(ROB_ADDR_BITS-1 downto 0);
 
-        alu_full_i          : in  std_logic;
-        branch_full_i       : in  std_logic;
-        rs_full_o           : out std_logic;
+        -- ALU instruction not granted the CDB holds IS/EX
+        alu_grant_i         : in  std_logic;
+        ex_busy_o           : out std_logic;
 
         alu_valid_o         : out std_logic;
         alu_op_a_o          : out std_logic_vector(DATA_WIDTH-1 downto 0);
@@ -48,7 +48,7 @@ begin
 
     alu_valid_o     <= valid_i and to_alu_s;
     branch_valid_o  <= valid_i and to_branch_s;
-    rs_full_o       <= (to_alu_s and alu_full_i) or (to_branch_s and branch_full_i);
+    ex_busy_o       <= valid_i and to_alu_s and not alu_grant_i;
 
     -- ALU operand select
     operands_mux:
