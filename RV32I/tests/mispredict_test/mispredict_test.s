@@ -1,4 +1,3 @@
-nop
 # ===================================================================
 # MISPREDICTED BRANCHES
 # Static prediction = taken. Several forward branches that are NOT

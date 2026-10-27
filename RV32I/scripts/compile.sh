@@ -8,12 +8,6 @@ DIS_FILE="../tests/$TEST_NAME/$TEST_NAME.dis"
 
 echo "Compiling: $TEST_NAME"
 
-# Leading nop check
-FIRST_LINE=$(head -1 "$ASM_FILE")
-if [[ ! "$FIRST_LINE" =~ nop ]]; then
-    sed -i '1i nop' "$ASM_FILE"
-fi
-
 sed -i -z '$s/\n*$/\n/' "$ASM_FILE"
 
 # Assemble and convert

@@ -13,13 +13,14 @@ CONFIG ?= RV32I/config.mk
 include $(CONFIG)
 export CONFIG_MK := $(abspath $(CONFIG))
 
-.PHONY: help all clear-results sim sim-prj res ip synth bitstream sweep clean FORCE
+.PHONY: help all clear-results sim sim-prj sim-bd res ip synth bitstream sweep fw fw-update clean FORCE
 
 # Print targets and options
 help:
 	@echo "Simulation (TEST=<name>: one test, default all):"
 	@echo "  make sim        <TEST=...>               regression, no project"
 	@echo "  make sim-prj    <TEST=...>               regression, Vivado project"
+	@echo "  make sim-bd     <TEST=...>               regression on the Zybo block design"
 	@echo "  make res        <TEST=...>               last results"
 	@echo ""
 	@echo "FPGA (PROG=<program>: default last compiled test; settings in RV32I/config.mk):"
@@ -28,6 +29,8 @@ help:
 	@echo "  make bitstream  <PROG=...>               Zybo bitstream"
 	@echo "  make all        <PROG=...>               sim, then bitstream"
 	@echo "  make sweep                               size sweep (~3 h)"
+	@echo "  make fw         <FW=...>                 firmware to PROG format (RV32I/fw)"
+	@echo "  make fw-update  <FW=...>                 firmware into the built bitstream, no rebuild"
 	@echo "  make clean                               remove generated files"
 
 # Regression, then bitstream
@@ -139,13 +142,38 @@ bitstream: ip
 sweep:
 	@python3 RV32I/scripts/sweep.py
 
+# Regression on the Zybo block design
+sim-bd: ip clear-results
+	@START_TIME=$$(date +%s); \
+	TEST=$(TEST) $(VIVADO) -mode batch -nojournal -log $(VIVADO_DIR)/sim_bd.log -source $(VIVADO_DIR)/sim_bd.tcl > /dev/null || { grep -E '^ERROR' $(VIVADO_DIR)/sim_bd.log; exit 1; }; \
+	ELAPSED=$$(( $$(date +%s) - START_TIME )); \
+	echo "Block design simulation time: $$((ELAPSED / 60)) min $$((ELAPSED % 60)) s"
+	@./RV32I/scripts/verdict.sh $(TEST)
+
+# Firmware to instruction memory format
+FW     ?= led_blink
+FW_DIR  = RV32I/fw
+fw:
+	@riscv64-unknown-elf-as -march=rv32i $(FW_DIR)/$(FW).s -o $(FW_DIR)/$(FW).o
+	@riscv64-unknown-elf-objdump -d $(FW_DIR)/$(FW).o | awk '/^ +[0-9a-f]+:/{print $$2}' | perl -ne 'chomp; printf "%032b\n", hex($$_)' > $(FW_DIR)/$(FW).bin
+	@riscv64-unknown-elf-ld -m elf32lriscv -Ttext=0 -e 0 $(FW_DIR)/$(FW).o -o $(FW_DIR)/$(FW).elf
+	@rm -f $(FW_DIR)/$(FW).o
+	@echo "Firmware: $(FW_DIR)/$(FW).bin, $(FW_DIR)/$(FW).elf"
+
+# Firmware into the built bitstream (no rebuild)
+BIT_DIR = $(VIVADO_DIR)/bitstream_out
+fw-update: fw
+	@$(XBIN)updatemem -force -meminfo $(BIT_DIR)/imem.mmi -data $(FW_DIR)/$(FW).elf -proc imem \
+		-bit $(BIT_DIR)/design_1_wrapper.bit -out $(BIT_DIR)/design_1_wrapper_$(FW).bit > $(BIT_DIR)/updatemem.log || { grep -E 'ERROR' $(BIT_DIR)/updatemem.log; exit 1; }
+	@echo "Bitstream: $(BIT_DIR)/design_1_wrapper_$(FW).bit"
+
 # Show test results
 res:
 	@./RV32I/scripts/verdict.sh $(TEST)
 
 # Clean generated files
-GEN_FILES = *.txt *.log *.jou *.dis *.str *.hex *.bin *.o *.pb *.vcd *.sha
-GEN_DIRS  = RISCV_project ip_package ip_repo synth_out zybo_project bitstream_out sweep_out .Xil
+GEN_FILES = *.txt *.log *.jou *.dis *.str *.hex *.bin *.o *.pb *.vcd *.sha *.elf
+GEN_DIRS  = RISCV_project ip_package ip_repo synth_out zybo_project zybo_sim bitstream_out sweep_out .Xil
 
 clean:
 	find . -path ./.git -prune -o -type f \( $(foreach f,$(GEN_FILES),-name "$(f)" -o) -false \) -print | xargs rm -f

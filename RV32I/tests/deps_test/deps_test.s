@@ -1,4 +1,3 @@
-nop
 # ===================================================================
 # RAW STRESS TEST - DEPENDENCY CHAINS WITH BRANCHES AND JALR
 # Long read-after-write chains packed into subroutines (jal call,

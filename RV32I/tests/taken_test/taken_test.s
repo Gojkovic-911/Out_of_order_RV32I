@@ -1,4 +1,3 @@
-nop
 # ===================================================================
 # CORRECTLY PREDICTED BRANCHES
 # Static prediction = taken. A chain of forward branches that are all

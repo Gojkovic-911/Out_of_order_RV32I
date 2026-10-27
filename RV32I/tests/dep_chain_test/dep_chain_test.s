@@ -1,4 +1,3 @@
-nop
 # Dependent chain: every addi uses the previous result
 addi    x5,  x5, 1
 addi    x5,  x5, 1

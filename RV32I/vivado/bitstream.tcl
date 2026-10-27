@@ -4,6 +4,7 @@ set script_dir [file dirname [file normalize [info script]]]
 cd $script_dir
 source $script_dir/config.tcl
 source $script_dir/platform_bd.tcl
+source $script_dir/imem_mmi.tcl
 
 set prog    [file normalize [lindex $argv 0]]
 set prj_dir [file normalize ./zybo_project]
@@ -56,6 +57,7 @@ report_utilization    -file $out/utilization.rpt
 report_timing_summary -file $out/timing.rpt
 write_paths $out/paths.txt
 report_power -file $out/power.rpt
+write_imem_mmi $out/imem.mmi $part
 file copy -force [glob $prj_dir/zybo_project.runs/impl_1/*.bit] $out/
 puts "Bitstream: [glob $out/*.bit]"
 

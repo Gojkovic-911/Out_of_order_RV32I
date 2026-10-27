@@ -1,4 +1,3 @@
-nop
 # ===================================================================
 # LSU STRESS TEST
 # - word/byte stores and loads, sign extension

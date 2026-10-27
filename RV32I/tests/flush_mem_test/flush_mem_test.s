@@ -1,4 +1,3 @@
-nop
 # ===================================================================
 # MIXED TEST - MISPREDICTED BRANCHES
 # The first branch condition comes from a pointer chase through

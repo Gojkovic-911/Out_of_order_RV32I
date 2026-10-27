@@ -10,6 +10,7 @@ gcc-riscv64-unknown-elf
 # Simulation (TEST=<name>: one test, default all)
 make sim         # <TEST=...>               regression, no project
 make sim-prj     # <TEST=...>               regression, Vivado project
+make sim-bd      # <TEST=...>               regression on the Zybo block design
 make res         # <TEST=...>               last results
 
 # FPGA (PROG=<program>: default last compiled test; settings in RV32I/config.mk)
@@ -17,6 +18,8 @@ make ip          #                          package CPU IP
 make synth       # <PROG=...> <PERIOD=...>  CPU synthesis, critical paths
 make bitstream   # <PROG=...>               Zybo bitstream
 make all         # <PROG=...>               sim, then bitstream
+make fw          # <FW=...>                 firmware to PROG format (RV32I/fw)
+make fw-update   # <FW=...>                 firmware into the built bitstream, no rebuild
 make clean       #                          remove generated files
 ```
 
@@ -67,8 +70,8 @@ Vivado 2023.2, 16-thread machine, 16 GB RAM, 3-4 parallel jobs:
 
 | Command | Time |
 |---|---:|
-| `make sim-prj` (11 tests) | 3 min 03 s |
 | `make sim` (11 tests) | 2 min 09 s |
+| `make sim-prj` (11 tests) | 3 min 03 s |
 | `make synth` (CPU only) | 5 min 55 s |
 | `make bitstream` | ~ 11 min |
 

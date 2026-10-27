@@ -23,7 +23,9 @@ ip_package
 ip_repo
 synth_out
 zybo_project
+zybo_sim
 bitstream_out
 sweep_out
 SHA3_platform
 __pycache__
+*.elf

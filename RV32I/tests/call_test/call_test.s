@@ -1,4 +1,3 @@
-nop
 # ===================================================================
 # MIXED TEST - JALR
 # The first jalr target is computed with auipc, stored to memory and

@@ -1,4 +1,3 @@
-nop
 # ===================================================================
 # MANY BRANCHES IN FLIGHT - STRAIGHT LINE
 # Forward branches of every type back to back (plus jalr), with

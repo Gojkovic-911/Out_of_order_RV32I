@@ -1,4 +1,3 @@
-nop
 # ===================================================================
 # JALR TEST
 # Every flavour of jalr: call/return, nested calls with the return

@@ -1,4 +1,3 @@
-nop
 # ===================================================================
 # STRESS TEST - ALU PHASES DISPATCHED THROUGH A FUNCTION TABLE
 # Four ALU phases (add / xor / or-and / shift-compare chains) are

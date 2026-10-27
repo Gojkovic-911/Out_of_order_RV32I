@@ -1,4 +1,3 @@
-nop
 # ===================================================================
 # LOOPS - MANY BRANCHES IN FLIGHT
 # Static prediction = taken: a backward loop branch is right on every

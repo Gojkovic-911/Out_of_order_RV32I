@@ -1,4 +1,3 @@
-nop
 # ===================================================================
 # MIXED TEST - CORRECTLY PREDICTED BRANCHES
 # ALU (R/I type, shifts, compares, lui/auipc) mixed with loads/stores.
