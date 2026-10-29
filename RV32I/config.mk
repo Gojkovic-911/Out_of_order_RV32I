@@ -22,10 +22,19 @@ LSQ_DEPTH      = 16
 # Instruction memory of 2^WADDR bytes (the testbench data memory too)
 WADDR          = 14
 
-# ---- Simulation only: generics of riscv_top_tb ----
-SIM_GENERICS      = DATA_MEM_MAX_WAIT
+# ---- Synthesis only: generics of riscv_top_mem (IP, synthesis) ----
+SYNTH_GENERICS = RF_RAM_STYLE IQ_RAM_STYLE
 
-# AXI data memory model: 0..N random wait cycles per handshake
+# Vivado ram_style of the physical register file and the IQ payload:
+# auto, distributed (LUTRAM), block (BRAM) or registers (flip-flops)
+RF_RAM_STYLE   = auto
+IQ_RAM_STYLE   = distributed
+
+# ---- Simulation only: generics of riscv_top_tb ----
+SIM_GENERICS      = DATA_MEM_MIN_WAIT DATA_MEM_MAX_WAIT
+
+# AXI data memory model: MIN..MAX random wait cycles per handshake
+DATA_MEM_MIN_WAIT = 0
 DATA_MEM_MAX_WAIT = 3
 
 # ---- FPGA: Zybo (original, Zynq-7010) ----
@@ -40,7 +49,7 @@ IMPL_EFFORT   = performance
 
 # Board oscillator in, CPU and bus clock out of clk_wiz (MHz)
 BOARD_CLK_MHZ = 125
-CPU_CLK_MHZ   = 50
+CPU_CLK_MHZ   = 120
 
 # Address map of the CPU data port (firmware uses these addresses)
 DMEM_BASE     = 0x00000000

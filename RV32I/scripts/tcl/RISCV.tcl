@@ -38,7 +38,6 @@ if { [file exists $project_file] } {
     add_files -norecurse $src/rtl/BRAM_byte_addressable.vhd
     add_files -norecurse $src/rtl/data_path/immediate.vhd 
     add_files -norecurse $src/rtl/data_path/ALU_simple.vhd 
-    add_files -norecurse $src/rtl/data_path/register_bank.vhd 
     add_files -norecurse $src/rtl/data_path/LSU.vhd
     add_files -norecurse $src/rtl/data_path/LSQ.vhd
     add_files -norecurse $src/rtl/data_path/branch_decision_unit.vhd

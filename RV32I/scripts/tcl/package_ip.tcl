@@ -24,7 +24,6 @@ set core_files [list \
     $rtl/data_path/LSQ.vhd \
     $rtl/data_path/branch_decision_unit.vhd \
     $rtl/data_path/immediate.vhd \
-    $rtl/data_path/register_bank.vhd \
     $rtl/data_path/free_list_fifo.vhd \
     $rtl/data_path/renaming_module.vhd \
     $rtl/data_path/ROB.vhd \

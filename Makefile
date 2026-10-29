@@ -23,13 +23,13 @@ help:
 	@echo "Simulation (TEST=<name>: one test, default all):"
 	@echo "  make sim        <TEST=...>               regression, no project"
 	@echo "  make sim-prj    <TEST=...>               regression, Vivado project"
-	@echo "  make sim-bd     <TEST=...>               regression on the Zybo block design"
+	@echo "  make sim-bd     <TEST=...>               regression on the CPU platform"
 	@echo "  make res        <TEST=...>               last results"
 	@echo ""
 	@echo "FPGA (PROG=<program>: default last compiled test; settings in RV32I/config.mk):"
 	@echo "  make ip                                  package CPU IP"
-	@echo "  make synth      <PROG=...> <PERIOD=...>  CPU synthesis, critical paths"
-	@echo "  make bitstream  <PROG=...>               Zybo bitstream"
+	@echo "  make synth      <PROG=...> <PERIOD=...>  CPU synthesis & implementation"
+	@echo "  make bitstream  <PROG=...>               FPGA bitstream"
 	@echo "  make all        <PROG=...>               sim, then bitstream"
 	@echo "  make sweep                               size sweep (~3 h)"
 	@echo "  make fw         <FW=...>                 firmware to PROG format (out/fw)"
@@ -67,7 +67,6 @@ NP_SRCS = \
 	RV32I/rtl/data_path/LSQ.vhd \
 	RV32I/rtl/data_path/branch_decision_unit.vhd \
 	RV32I/rtl/data_path/immediate.vhd \
-	RV32I/rtl/data_path/register_bank.vhd \
 	RV32I/rtl/data_path/free_list_fifo.vhd \
 	RV32I/rtl/data_path/renaming_module.vhd \
 	RV32I/rtl/data_path/ROB.vhd \

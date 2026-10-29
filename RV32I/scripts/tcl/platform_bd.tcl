@@ -14,7 +14,7 @@ proc create_platform_bd {bd_name program} {
     # IP cells
     set cpu [create_bd_cell -type ip -vlnv user.org:user:CPU:2.0 CPU_0]
     set_property CONFIG.INIT_FILE $program $cpu
-    foreach name $cfg(CORE_GENERICS) {
+    foreach name [concat $cfg(CORE_GENERICS) $cfg(SYNTH_GENERICS)] {
         set_property CONFIG.$name $cfg($name) $cpu
     }
 

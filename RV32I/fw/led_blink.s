@@ -1,6 +1,6 @@
 # 4-bit counter on GPIO LD0-LD3
-# About 0.66 s per step at 50 MHz
-.equ DELAY, 6250000
+# About 0.66 s per step at 120 MHz
+.equ DELAY, 15000000
         lui   x5, 0x40000
         addi  x7, x0, 0
 loop:

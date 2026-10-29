@@ -12,6 +12,9 @@ entity riscv_top_mem is
             IQ_DEPTH       : positive := 16;
             LSQ_DEPTH      : positive := 16;
             WADDR          : natural  := 14;
+            -- Vivado ram_style of the register file and IQ payload
+            RF_RAM_STYLE   : string   := "auto";
+            IQ_RAM_STYLE   : string   := "distributed";
             -- Program loaded at synthesis
             INIT_FILE   : string  := "");
    port(
@@ -65,7 +68,9 @@ begin
          NUM_PHYS_REGS  => NUM_PHYS_REGS,
          ROB_DEPTH      => ROB_DEPTH,
          IQ_DEPTH       => IQ_DEPTH,
-         LSQ_DEPTH      => LSQ_DEPTH
+         LSQ_DEPTH      => LSQ_DEPTH,
+         RF_RAM_STYLE   => RF_RAM_STYLE,
+         IQ_RAM_STYLE   => IQ_RAM_STYLE
       )
       port map (
          clk               => clk,

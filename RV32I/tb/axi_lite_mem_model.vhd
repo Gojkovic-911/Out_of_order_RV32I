@@ -6,6 +6,7 @@ use ieee.numeric_std.all;
 entity axi_lite_mem_model is
     generic (
         WADDR       : natural := 14;
+        MIN_WAIT    : natural := 0;
         MAX_WAIT    : natural := 3;
         SEED        : natural := 16#ACE1#
     );
@@ -71,10 +72,10 @@ begin
         begin
             -- 16-bit LFSR wait generator
             lfsr := lfsr(14 downto 0) & (lfsr(15) xor lfsr(13) xor lfsr(12) xor lfsr(10));
-            if MAX_WAIT = 0 then
-                return 0;
+            if MAX_WAIT <= MIN_WAIT then
+                return MIN_WAIT;
             end if;
-            return to_integer(lfsr(7 downto 0)) mod (MAX_WAIT + 1);
+            return MIN_WAIT + to_integer(lfsr(7 downto 0)) mod (MAX_WAIT - MIN_WAIT + 1);
         end function;
     begin
         if rising_edge(clk) then

@@ -37,7 +37,7 @@ if {$cfg(IMPL_EFFORT) eq "performance"} {
     }
     set impl [get_runs impl_1]
     set_property STEPS.OPT_DESIGN.ARGS.DIRECTIVE                Explore           $impl
-    set_property STEPS.PLACE_DESIGN.ARGS.DIRECTIVE              ExtraTimingOpt    $impl
+    set_property STEPS.PLACE_DESIGN.ARGS.DIRECTIVE              ExtraNetDelay_high $impl
     set_property STEPS.PHYS_OPT_DESIGN.IS_ENABLED               true              $impl
     set_property STEPS.PHYS_OPT_DESIGN.ARGS.DIRECTIVE           AggressiveExplore $impl
     set_property STEPS.ROUTE_DESIGN.ARGS.DIRECTIVE              AggressiveExplore $impl

@@ -15,7 +15,9 @@ entity data_path is
         IQ_DEPTH        : natural  := 16;
         IQ_BITS         : natural  := 4;
         LSQ_DEPTH       : natural  := 16;
-        LSQ_BITS        : natural  := 4
+        LSQ_BITS        : natural  := 4;
+        RF_RAM_STYLE    : string   := "auto";
+        IQ_RAM_STYLE    : string   := "distributed"
         );
     
     port(
@@ -173,8 +175,6 @@ architecture Behavioral of data_path is
     signal issue_rob_idx_s              : std_logic_vector(ROB_ADDR_BITS-1 downto 0);
     signal issue_lsq_idx_s              : std_logic_vector(LSQ_BITS-1 downto 0);
     
-    signal issue_rs1_ready_s            : std_logic;
-    signal issue_rs2_ready_s            : std_logic;
     
     signal issue_instr_type_s           : std_logic_vector(3 downto 0);
     signal issue_instr_subtype_s        : std_logic_vector(4 downto 0);
@@ -211,8 +211,6 @@ architecture Behavioral of data_path is
     signal execute_instr_type_s    : std_logic_vector(3 downto 0);
     signal execute_instr_subtype_s : std_logic_vector(4 downto 0);
     
-    signal execute_rs1_ready_s     : std_logic;
-    signal execute_rs2_ready_s     : std_logic;
     
     signal execute_imm_s           : std_logic_vector(DATA_WIDTH-1 downto 0);
     
@@ -229,6 +227,8 @@ architecture Behavioral of data_path is
     
     type phys_reg_array_t is array (0 to NUM_PHYS_REGS-1) of std_logic_vector(DATA_WIDTH-1 downto 0);
     signal phys_regs_s : phys_reg_array_t := (others => (others => '0'));
+    attribute ram_style : string;
+    attribute ram_style of phys_regs_s : signal is RF_RAM_STYLE;
     
     signal pc_halt_s, halt_lock_s   : std_logic;
     signal pc_reg_s_delayed         : std_logic_vector(DATA_WIDTH-1 downto 0);
@@ -254,27 +254,18 @@ begin
     end process;
     
     -- Asynchronous read
-    phys_regs_read : process (issue_rs1_addr_s, issue_rs2_addr_s, phys_regs_s, cdb_valid_s, cdb_rd_addr_s, cdb_data_s) is
+    phys_regs_read : process (issue_rs1_addr_s, issue_rs2_addr_s, phys_regs_s) is
     begin
-    
         if(to_integer(unsigned(issue_rs1_addr_s)) = 0) then
             issue_rs1_data_s <= std_logic_vector(to_unsigned(0, DATA_WIDTH));
         else
-            if(cdb_valid_s = '1' and cdb_rd_addr_s = issue_rs1_addr_s ) then
-                issue_rs1_data_s <= cdb_data_s;
-            else
-                issue_rs1_data_s <= phys_regs_s(to_integer(unsigned(issue_rs1_addr_s)));
-            end if;
+            issue_rs1_data_s <= phys_regs_s(to_integer(unsigned(issue_rs1_addr_s)));
         end if;
         
         if(to_integer(unsigned(issue_rs2_addr_s)) = 0) then
             issue_rs2_data_s <= std_logic_vector(to_unsigned(0, DATA_WIDTH));
         else
-            if(cdb_valid_s = '1' and cdb_rd_addr_s = issue_rs2_addr_s ) then
-                issue_rs2_data_s <= cdb_data_s;
-            else
-                issue_rs2_data_s <= phys_regs_s(to_integer(unsigned(issue_rs2_addr_s)));
-            end if;
+            issue_rs2_data_s <= phys_regs_s(to_integer(unsigned(issue_rs2_addr_s)));
         end if;
     end process;
     
@@ -483,7 +474,8 @@ begin
             PHYS_ADDR_BITS => PHYS_ADDR_BITS,
             DATA_WIDTH     => DATA_WIDTH,
             ROB_ADDR_BITS   => ROB_ADDR_BITS,
-            LSQ_BITS        => LSQ_BITS
+            LSQ_BITS        => LSQ_BITS,
+            PAYLOAD_RAM_STYLE => IQ_RAM_STYLE
         )
         port map (
             clk                      => clk,
@@ -526,9 +518,6 @@ begin
             issue_instr_type_o       => issue_instr_type_s,
             issue_instr_subtype_o    => issue_instr_subtype_s,
             
-            issue_rs1_ready_o        => issue_rs1_ready_s,      
-            issue_rs2_ready_o        => issue_rs2_ready_s,      
-                
             issue_imm_o              => issue_imm_s,   
             
             issue_pc_reg_o           => issue_pc_reg_s,   
@@ -543,8 +532,6 @@ begin
         if (rising_edge(clk)) then
             if reset = '0' or flush_pipe_i = '1' then
                 execute_valid_s         <= '0';
-                execute_rs1_ready_s     <= '0';  
-                execute_rs2_ready_s     <= '0';
                 execute_rs1_data_s      <= (others => '0');
                 execute_rs2_data_s      <= (others => '0');
                 execute_rs1_addr_s      <= (others => '0');
@@ -560,8 +547,6 @@ begin
                  
             elsif stall_ex_i = '0' then
                 execute_valid_s         <= issue_valid_s;
-                execute_rs1_ready_s     <= issue_rs1_ready_s;    
-                execute_rs2_ready_s     <= issue_rs2_ready_s;  
                 execute_rs1_data_s      <= issue_rs1_data_s;
                 execute_rs2_data_s      <= issue_rs2_data_s;
                 execute_rs1_addr_s      <= issue_rs1_addr_s;

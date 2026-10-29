@@ -10,7 +10,9 @@ entity riscv_top is
             NUM_PHYS_REGS  : positive := 64;
             ROB_DEPTH      : positive := 64;
             IQ_DEPTH       : positive := 16;
-            LSQ_DEPTH      : positive := 16);
+            LSQ_DEPTH      : positive := 16;
+            RF_RAM_STYLE   : string   := "auto";
+            IQ_RAM_STYLE   : string   := "distributed");
    port(
       -- Clock and reset
       clk                 : in  std_logic;
@@ -102,7 +104,9 @@ begin
             IQ_DEPTH       => IQ_DEPTH,
             IQ_BITS        => IQ_BITS,
             LSQ_DEPTH      => LSQ_DEPTH,
-            LSQ_BITS       => LSQ_BITS)
+            LSQ_BITS       => LSQ_BITS,
+            RF_RAM_STYLE   => RF_RAM_STYLE,
+            IQ_RAM_STYLE   => IQ_RAM_STYLE)
         port map (
             clk                      => clk,
             reset                    => reset,

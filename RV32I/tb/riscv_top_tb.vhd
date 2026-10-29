@@ -21,6 +21,7 @@ generic (
         IQ_DEPTH          : positive  := 16;
         LSQ_DEPTH         : positive  := 16;
         WADDR             : natural   := 14;
+        DATA_MEM_MIN_WAIT : natural   := 0;
         DATA_MEM_MAX_WAIT : natural   := 3;
         -- Program file to run
         PROGRAM_FILE      : string    := "../../../../../tests/assembly_code_bin.txt"
@@ -78,7 +79,7 @@ begin
 
    -- AXI-Lite data memory
    data_mem : entity work.axi_lite_mem_model
-      generic map(WADDR => WADDR, MAX_WAIT => DATA_MEM_MAX_WAIT)
+      generic map(WADDR => WADDR, MIN_WAIT => DATA_MEM_MIN_WAIT, MAX_WAIT => DATA_MEM_MAX_WAIT)
       port map (clk           => clk,
                 reset         => reset,
                 s_axi_awaddr  => awaddr_s,

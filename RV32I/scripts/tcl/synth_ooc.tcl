@@ -23,7 +23,6 @@ read_vhdl -vhdl2008 [list \
     $rtl/data_path/LSQ.vhd \
     $rtl/data_path/branch_decision_unit.vhd \
     $rtl/data_path/immediate.vhd \
-    $rtl/data_path/register_bank.vhd \
     $rtl/data_path/free_list_fifo.vhd \
     $rtl/data_path/renaming_module.vhd \
     $rtl/data_path/ROB.vhd \
@@ -48,6 +47,9 @@ read_xdc -mode out_of_context $xdc
 set generics {}
 foreach g [cfg_generics CORE_GENERICS] {
     lappend generics -generic $g
+}
+foreach name $cfg(SYNTH_GENERICS) {
+    lappend generics -generic "$name=\"$cfg($name)\""
 }
 synth_design -top riscv_top_mem -part $part -mode out_of_context {*}$generics -generic "INIT_FILE=\"$prog\"" {*}[effort_args synth]
 report_utilization                -file $out/utilization_synth.rpt

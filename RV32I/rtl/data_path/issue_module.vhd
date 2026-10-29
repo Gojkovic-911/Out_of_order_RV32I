@@ -10,7 +10,8 @@ entity issue_module is
         PHYS_ADDR_BITS : natural := 5;
         DATA_WIDTH     : natural := 32;
         ROB_ADDR_BITS  : natural := 6;
-        LSQ_BITS       : natural := 4
+        LSQ_BITS       : natural := 4;
+        PAYLOAD_RAM_STYLE : string := "distributed"
     );
     port (
         clk          : in  std_logic;
@@ -45,9 +46,6 @@ entity issue_module is
         issue_rd_addr_o          : out std_logic_vector(PHYS_ADDR_BITS-1 downto 0);
         issue_rob_idx_o          : out std_logic_vector(ROB_ADDR_BITS-1 downto 0);
         issue_lsq_idx_o          : out std_logic_vector(LSQ_BITS-1 downto 0);
-        
-        issue_rs1_ready_o        : out std_logic;
-        issue_rs2_ready_o        : out std_logic;
         
         issue_instr_type_o       : out std_logic_vector(3 downto 0);
         issue_instr_subtype_o    : out std_logic_vector(4 downto 0);
@@ -103,7 +101,7 @@ architecture Behavioral of issue_module is
     signal iq_ram_s   : iq_ram_t;
     signal iq_read_s  : iq_entry_t;
     attribute ram_style : string;
-    attribute ram_style of iq_ram_s : signal is "distributed";
+    attribute ram_style of iq_ram_s : signal is PAYLOAD_RAM_STYLE;
     
     -- IQ status flip-flops
     type iq_ff_entry_t is record
@@ -125,7 +123,6 @@ architecture Behavioral of issue_module is
     signal issue_addr_s        : std_logic_vector(IQ_BITS-1  downto 0);
     
     signal issue_addr_reg_s    : std_logic_vector(IQ_BITS-1  downto 0);
-    signal issue_valid_reg_s   : std_logic;
     
     signal dispatch_ptr_s : integer range 0 to IQ_DEPTH-1 := 0;
     signal issue_ptr_s    : integer range 0 to IQ_DEPTH-1 := 0;
@@ -165,6 +162,8 @@ begin
                 issue_rob_idx_o       <= (others => '0');
                 issue_lsq_idx_o       <= (others => '0');
                 issue_instruction     <= (others => '0');
+                issue_rs1_addr_o      <= (others => '0');
+                issue_rs2_addr_o      <= (others => '0');
             elsif (stall_iq_is_i = '0' and issue_valid_s = '1') then
                 issue_rd_addr_o       <= iq_read_s.rd_addr;
                 issue_instr_type_o    <= iq_read_s.instr_type;
@@ -174,6 +173,8 @@ begin
                 issue_rob_idx_o       <= iq_read_s.rob_idx;
                 issue_lsq_idx_o       <= iq_read_s.lsq_idx;
                 issue_instruction     <= iq_read_s.instruction;
+                issue_rs1_addr_o      <= iq_ffs_s(to_integer(unsigned(issue_addr_s))).rs1_addr;
+                issue_rs2_addr_o      <= iq_ffs_s(to_integer(unsigned(issue_addr_s))).rs2_addr;
             end if;
         end if;
     end process;
@@ -254,13 +255,11 @@ begin
     begin
         if (rising_edge(clk)) then
             if (reset = '0') then
-                issue_valid_reg_s      <= '0';
                 issue_addr_reg_s       <= (others => '0');
                 issue_ptr_s            <= 0;
                 dispatch_ptr_s         <= 0;
             else
                 if (stall_iq_is_i = '0') then
-                    issue_valid_reg_s      <= issue_valid_s;
                     issue_addr_reg_s       <= issue_addr_s;
                     if (issue_valid_s = '1') then
                         issue_ptr_s        <= to_integer(unsigned(issue_addr_s));
@@ -271,33 +270,6 @@ begin
                 if (dispatch_ready_s = '1' and dispatch_valid_i = '1') then
                     dispatch_ptr_s         <= to_integer(unsigned(dispatch_addr_s));
                 end if;
-            end if;
-        end if;
-    end process;
-    
-    -- Issue read from status
-    process(iq_ffs_s, issue_valid_reg_s, issue_addr_reg_s, cdb_valid_i, cdb_addr_i)
-    begin
-            issue_rs1_addr_o        <= (others => '0');
-            issue_rs2_addr_o        <= (others => '0');
-            issue_rs1_ready_o       <= '0';
-            issue_rs2_ready_o       <= '0';
-            
-        if (issue_valid_reg_s = '1') then
-            issue_rs1_addr_o        <= iq_ffs_s(to_integer(unsigned(issue_addr_reg_s))).rs1_addr;
-            issue_rs2_addr_o        <= iq_ffs_s(to_integer(unsigned(issue_addr_reg_s))).rs2_addr;
-            
-            -- CDB bypass on issue
-            if(cdb_valid_i = '1' and iq_ffs_s(to_integer(unsigned(issue_addr_reg_s))).rs1_addr = cdb_addr_i) then
-                issue_rs1_ready_o   <= '1';
-            else
-                issue_rs1_ready_o   <= iq_ffs_s(to_integer(unsigned(issue_addr_reg_s))).rs1_ready;
-            end if;
-            
-            if(cdb_valid_i = '1' and iq_ffs_s(to_integer(unsigned(issue_addr_reg_s))).rs2_addr = cdb_addr_i) then
-                issue_rs2_ready_o   <= '1';
-            else
-                issue_rs2_ready_o   <= iq_ffs_s(to_integer(unsigned(issue_addr_reg_s))).rs2_ready;
             end if;
         end if;
     end process;
