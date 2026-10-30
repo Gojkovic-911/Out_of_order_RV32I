@@ -82,7 +82,7 @@ proc create_platform_bd {bd_name program data sim_load} {
     set space [get_bd_addr_spaces CPU_0/m_axi]
     assign_bd_address -target_address_space $space -offset $dmem_base -range $dmem_size \
         [get_bd_addr_segs dmem_0/s_axi/*]
-    assign_bd_address -target_address_space $space -offset $gpio_base -range $cfg(GPIO_SIZE) \
+    assign_bd_address -target_address_space $space -offset $gpio_base -range 64K \
         [get_bd_addr_segs axi_gpio_0/S_AXI/Reg]
 
     validate_bd_design

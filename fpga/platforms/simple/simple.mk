@@ -8,8 +8,6 @@ CPU_CLK_MHZ   = 120
 DMEM_BASE     = 0x00000000
 DMEM_SIZE     = 16K
 GPIO_BASE     = 0x40000000
-# GPIO register window
-GPIO_SIZE     = 64K
 # GPIO outputs (LEDs)
 GPIO_WIDTH    = 4
 

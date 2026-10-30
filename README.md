@@ -125,19 +125,8 @@ The instruction memory is inside the CPU, so the program is part of the bitstrea
 
 1. Optimize critical paths
 2. SHA3 platform: add a SHA3 accelerator with the DMA
-3. Backpressure through valid/ready per stage instead of separate stall logic: whoever is blocked drops ready, everything behind it holds and writes nothing, everything ahead keeps moving. This should be configurable: backpressure or the classic control path
-4. Instruction memory on the other side of AXI, loaded over JTAG (no updatemem and no new bitstream download to change the program):
-   - Instruction BRAM with two ports: one for the CPU fetch, one through an AXI BRAM Controller
-   - JTAG-to-AXI Master on the AXI side
-   - CPU held in reset while the program is written
+3. Backpressure through valid/ready per stage
+4. Instruction and data memory loaded over JTAG
 5. Exception support
 6. Spike golden model
 7. AXI-Full interface
-
-## Debug
-
-If the Makefile does not find Vivado through `locate`, run `sudo updatedb`, set `VIVADO` in `tools.mk` or give the path directly:
-
-```bash
-make cpu sim VIVADO=/tools/Xilinx/Vivado/2023.2/bin/vivado
-```

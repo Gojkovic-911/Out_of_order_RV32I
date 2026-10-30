@@ -3,8 +3,7 @@ use ieee.std_logic_1164.all;
 
 -- CPU platform, board clock and reset button
 entity platform_tb is
-   generic (BOARD_CLK_MHZ : positive := 125;
-            RESET_US      : positive := 1);
+   generic (BOARD_CLK_MHZ : positive := 125);
 end entity;
 
 architecture Behavioral of platform_tb is
@@ -21,6 +20,6 @@ begin
          gpio => gpio);
 
    clk <= not clk after HALF_PERIOD;
-   rst <= '0' after RESET_US * 1 us;
+   rst <= '0' after 1 us;
 
 end Behavioral;

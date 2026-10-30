@@ -32,14 +32,13 @@ CFG_NAMES := $(shell sed -n -E 's/^\s*(\w+)\s*=.*/\1/p' $(CFG_FILES))
 $(foreach v,$(CFG_NAMES),$(eval export CFG_$(v) = $$($(v))))
 
 # Required values per file, then allowed values
-REQ_CPU      = CORE_GENERICS DATA_WIDTH MEM_BYTES ARCH_ADDR_BITS NUM_PHYS_REGS ROB_DEPTH IQ_DEPTH LSQ_DEPTH WADDR \
+REQ_CPU      = CORE_GENERICS DATA_WIDTH ARCH_ADDR_BITS NUM_PHYS_REGS ROB_DEPTH IQ_DEPTH LSQ_DEPTH WADDR \
                SYNTH_GENERICS RF_RAM_STYLE IQ_RAM_STYLE SYNTH_CLK_MHZ SYNTH_PART
-REQ_PLATFORM = CPU_CLK_MHZ DMEM_BASE DMEM_SIZE GPIO_BASE GPIO_SIZE GPIO_WIDTH DEFAULT_FW
+REQ_PLATFORM = CPU_CLK_MHZ DMEM_BASE DMEM_SIZE GPIO_BASE GPIO_WIDTH DEFAULT_FW
 REQ_BOARD    = PART BOARD_CLK_MHZ
 REQ_TOOLS    = VIVADO CROSS PYTHON CFLAGS MAX_JOBS IMPL_EFFORT SYNTH_DIRECTIVE OPT_DIRECTIVE PLACE_DIRECTIVE \
                PHYS_OPT_DIRECTIVE ROUTE_DIRECTIVE
-REQ_TB       = TB_GENERICS TB_CLK_NS IDLE_STOP_CYCLES MAX_CYCLES DATA_MEM_BITS DATA_MEM_MIN_WAIT DATA_MEM_MAX_WAIT \
-               DATA_MEM_SEED RESET_US BD_MAX_US BD_IDLE_US FW_SIM_US
+REQ_TB       = TB_GENERICS TB_CLK_NS IDLE_STOP_CYCLES MAX_CYCLES DATA_MEM_BITS DATA_MEM_MIN_WAIT DATA_MEM_MAX_WAIT
 require = $(foreach v,$(2),$(if $(strip $($(v))),,$(error $(1): $(v) missing)))
 allow   = $(if $(filter $(3),$($(2))),,$(error $(1): $(2) = $($(2)), allowed: $(3)))
 $(call require,$(CONFIG),$(REQ_CPU))
@@ -198,8 +197,11 @@ cpu-synth:
 	@python3 RV32I/scripts/critical_paths.py $(CPU_OUT)/synth/paths.txt > $(CPU_OUT)/synth/critical_paths.txt
 	@head -11 $(CPU_OUT)/synth/critical_paths.txt
 
-# CPU IP packaging (needed by the platform)
-ip:
+# CPU IP packaging (needed by the platform), again only when the CPU RTL changes
+CPU_RTL = $(filter RV32I/%,$(NP_SRCS))
+IP_XML  = $(CPU_OUT)/ip_repo/CPU/component.xml
+ip: $(IP_XML)
+$(IP_XML): $(CPU_RTL) $(TCL_DIR)/package_ip.tcl
 	@mkdir -p $(CPU_OUT)
 	@START_TIME=$$(date +%s); \
 	$(VIVADO_BIN) -mode batch -nojournal -log $(CPU_OUT)/ip_package.log -source $(TCL_DIR)/package_ip.tcl > /dev/null || { grep -E '^ERROR' $(CPU_OUT)/ip_package.log; exit 1; }; \
@@ -215,20 +217,33 @@ fw-build:
 	sw/common/build.sh sw/fw/$(PLATFORM)/$$fw.c $(FW_OUT)/$$fw fpga/platforms/$(PLATFORM)/$(PLATFORM).mk && \
 	echo $$fw > $(FW_OUT)/selected
 
-# Platform regression, or firmware run with FW
+# Platform regression, or firmware run with FW: plain xsim on the last snapshot when its inputs are unchanged
+BD_XSIM = $(BD_SIM_OUT)/sim/sim.sim/sim_1/behav/xsim
+BD_KEY  = $(BD_SIM_OUT)/snapshot.key
+BD_DEPS = $(CPU_RTL) $(wildcard fpga/rtl/*.vhd) fpga/platforms/$(PLATFORM)/platform_bd.tcl \
+          tb/fpga/$(PLATFORM)/platform_tb.vhd $(TB_TCL)/sim_bd.tcl
+BD_CFG  = $(foreach v,$(CFG_NAMES),$(v)=$($(v)))
 fpga-sim: RES_DIR = $(BD_SIM_OUT)
-fpga-sim: ip $(if $(FW),fw-build,clear-results)
+fpga-sim: $(IP_XML) $(if $(FW),fw-build,clear-results)
 	@mkdir -p $(BD_SIM_OUT)
 	@START_TIME=$$(date +%s); \
-	TEST=$(TEST) FW_DIR=$(if $(FW),$(CURDIR)/$(FW_OUT)/$$(cat $(FW_OUT)/selected)) \
-	$(VIVADO_BIN) -mode batch -nojournal -log $(BD_SIM_OUT)/sim_bd.log -source $(TB_TCL)/sim_bd.tcl > /dev/null || { grep -E '^ERROR' $(BD_SIM_OUT)/sim_bd.log; exit 1; }; \
+	export TEST=$(TEST) FW_DIR=$(if $(FW),$(CURDIR)/$(FW_OUT)/$$(cat $(FW_OUT)/selected)); \
+	key=$$( { cat $(BD_DEPS); echo '$(BD_CFG)'; } | md5sum | cut -d' ' -f1 ); \
+	if [ -d $(BD_XSIM)/xsim.dir/platform_tb_behav ] && [ "$$key" = "$$(cat $(BD_KEY) 2> /dev/null)" ]; then \
+		echo "Reusing the platform snapshot"; \
+		( cd $(BD_XSIM) && $(XBIN)xsim platform_tb_behav -tclbatch $(CURDIR)/$(TB_TCL)/run_bd.tcl ) > $(BD_SIM_OUT)/sim_bd.log 2>&1 || { grep -E 'ERROR' $(BD_SIM_OUT)/sim_bd.log; exit 1; }; \
+	else \
+		rm -f $(BD_KEY); \
+		$(VIVADO_BIN) -mode batch -nojournal -log $(BD_SIM_OUT)/sim_bd.log -source $(TB_TCL)/sim_bd.tcl > /dev/null || { grep -E '^ERROR' $(BD_SIM_OUT)/sim_bd.log; exit 1; }; \
+		echo $$key > $(BD_KEY); \
+	fi; \
 	ELAPSED=$$(( $$(date +%s) - START_TIME )); \
 	echo "Block design simulation time: $$((ELAPSED / 60)) min $$((ELAPSED % 60)) s"
 	@$(if $(FW),grep -h '^Waveform' $(BD_SIM_OUT)/sim_bd.log,./$(TB_SCRIPTS)/verdict.sh "$(TEST)" $(BD_SIM_OUT))
 
 # Platform bitstream with the firmware
 BIT_DIR = $(FPGA_OUT)/bitstream
-fpga-bitstream: ip fw-build
+fpga-bitstream: $(IP_XML) fw-build
 	@mkdir -p $(BIT_DIR)
 	@fw=$$(cat $(FW_OUT)/selected); START_TIME=$$(date +%s); \
 	$(VIVADO_BIN) -mode batch -nojournal -log $(BIT_DIR)/vivado.log -source $(FPGA_TCL)/bitstream.tcl \

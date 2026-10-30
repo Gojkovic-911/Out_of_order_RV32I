@@ -19,7 +19,7 @@ Out-of-order RV32I core, configured in [cpu.mk](cpu.mk)
 
 | Parameter | Default | Description |
 |---|---|---|
-| `DATA_WIDTH`, `MEM_BYTES` | 32, 4 | data width |
+| `DATA_WIDTH` | 32 | data width |
 | `ARCH_ADDR_BITS` | 5 | 32 registers |
 | `NUM_PHYS_REGS` | 64 | physical registers |
 | `ROB_DEPTH` | 32 | ROB entries |

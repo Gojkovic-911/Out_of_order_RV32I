@@ -3,14 +3,13 @@
 # Only the defaults are verified by the regression.
 
 # ---- Core: generics of riscv_top_mem (IP, synthesis) and riscv_top_tb ----
-CORE_GENERICS  = DATA_WIDTH MEM_BYTES ARCH_ADDR_BITS NUM_PHYS_REGS ROB_DEPTH IQ_DEPTH LSQ_DEPTH WADDR
+CORE_GENERICS  = DATA_WIDTH ARCH_ADDR_BITS NUM_PHYS_REGS ROB_DEPTH IQ_DEPTH LSQ_DEPTH WADDR
 
-# Data width in bits and bytes
+# Data width in bits
 DATA_WIDTH     = 32
-MEM_BYTES      = 4
 # Architectural register address bits (32 registers)
 ARCH_ADDR_BITS = 5
-# Physical registers (rename)
+# Physical registers
 NUM_PHYS_REGS  = 64
 # Reorder buffer entries
 ROB_DEPTH      = 32
