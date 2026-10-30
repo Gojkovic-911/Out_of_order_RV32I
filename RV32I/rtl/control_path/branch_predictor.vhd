@@ -9,7 +9,8 @@ entity branch_predictor is
     );
     Port ( 
         fetch_intr_i    : in std_logic_vector(DATA_WIDTH-1 downto 0);
-        is_jump_o       : out std_logic
+        is_jump_o       : out std_logic;
+        is_jalr_o       : out std_logic
     );
 end branch_predictor;
 
@@ -23,13 +24,17 @@ begin
     process(opcode) is
     begin
         is_jump_o    <= '0';
+        is_jalr_o    <= '0';
         if opcode = OPCODE_BRANCH then
             -- Static branch prediction
             is_jump_o       <= '1';
         
         elsif opcode = OPCODE_JAL then
             is_jump_o       <= '1';
+        
+        elsif opcode = OPCODE_JALR then
+            -- JALR stalls fetch until EX
+            is_jalr_o       <= '1';
         end if;
-        -- JALR is not predicted
     end process;
 end Behavioral;

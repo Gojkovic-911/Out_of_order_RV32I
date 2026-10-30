@@ -1,56 +1,128 @@
-# Simulation and Zybo FPGA build
+# CPU and FPGA flows: make cpu <action>, make fpga <action>
 
 SHELL = /bin/bash
 TCL_DIR       = RV32I/scripts/tcl
-VIVADO_SCRIPT = $(TCL_DIR)/RISCV.tcl
-# Everything generated goes here
-OUT           = out
+FPGA_TCL      = fpga/scripts
+TB_SCRIPTS    = tb/scripts
+TB_TCL        = $(TB_SCRIPTS)/tcl
+VIVADO_SCRIPT = $(TB_TCL)/RISCV.tcl
 
-VIVADO = $(shell locate bin/vivado | grep '/bin/vivado$$' | head -1)
+# FPGA platform and board (fpga only)
+PLATFORM ?= simple
+BOARD    ?= zybo
+export PLATFORM BOARD
 
-TEST ?=
-TEST_DIR = $(OUT)/tests
+# Generated files, same layout as the repository
+CPU_OUT       = out/RV32I
+FPGA_OUT      = out/fpga/$(PLATFORM)_$(BOARD)
+TB_OUT        = out/tb
+CPU_SIM_OUT   = $(TB_OUT)/cpu
+BD_SIM_OUT    = $(TB_OUT)/fpga/$(PLATFORM)_$(BOARD)
+FW_OUT        = out/sw/fw/$(PLATFORM)
+TEST_DIR      = $(TB_OUT)/tests
 
-# Shared CPU and board configuration
-CONFIG ?= RV32I/config.mk
-include $(CONFIG)
+# CPU, platform, board, tools and testbench configuration
+CONFIG    ?= RV32I/cpu.mk
+CFG_FILES  = $(CONFIG) fpga/platforms/$(PLATFORM)/$(PLATFORM).mk fpga/boards/$(BOARD)/board.mk tools.mk tb/tb.mk
+include $(CFG_FILES)
 export CONFIG_MK := $(abspath $(CONFIG))
 
-.PHONY: help all clear-results sim sim-prj sim-bd res ip synth bitstream sweep fw fw-update clean FORCE
+# Every value to the scripts as CFG_<name>, command line overrides included
+CFG_NAMES := $(shell sed -n -E 's/^\s*(\w+)\s*=.*/\1/p' $(CFG_FILES))
+$(foreach v,$(CFG_NAMES),$(eval export CFG_$(v) = $$($(v))))
 
-# Print targets and options
+# Required values per file, then allowed values
+REQ_CPU      = CORE_GENERICS DATA_WIDTH MEM_BYTES ARCH_ADDR_BITS NUM_PHYS_REGS ROB_DEPTH IQ_DEPTH LSQ_DEPTH WADDR \
+               SYNTH_GENERICS RF_RAM_STYLE IQ_RAM_STYLE SYNTH_CLK_MHZ SYNTH_PART
+REQ_PLATFORM = CPU_CLK_MHZ DMEM_BASE DMEM_SIZE GPIO_BASE GPIO_SIZE GPIO_WIDTH DEFAULT_FW
+REQ_BOARD    = PART BOARD_CLK_MHZ
+REQ_TOOLS    = VIVADO CROSS PYTHON CFLAGS MAX_JOBS IMPL_EFFORT SYNTH_DIRECTIVE OPT_DIRECTIVE PLACE_DIRECTIVE \
+               PHYS_OPT_DIRECTIVE ROUTE_DIRECTIVE
+REQ_TB       = TB_GENERICS TB_CLK_NS IDLE_STOP_CYCLES MAX_CYCLES DATA_MEM_BITS DATA_MEM_MIN_WAIT DATA_MEM_MAX_WAIT \
+               DATA_MEM_SEED RESET_US BD_MAX_US BD_IDLE_US FW_SIM_US
+require = $(foreach v,$(2),$(if $(strip $($(v))),,$(error $(1): $(v) missing)))
+allow   = $(if $(filter $(3),$($(2))),,$(error $(1): $(2) = $($(2)), allowed: $(3)))
+$(call require,$(CONFIG),$(REQ_CPU))
+$(call require,fpga/platforms/$(PLATFORM)/$(PLATFORM).mk,$(REQ_PLATFORM))
+$(call require,fpga/boards/$(BOARD)/board.mk,$(REQ_BOARD))
+$(call require,tools.mk,$(REQ_TOOLS))
+$(call require,tb/tb.mk,$(REQ_TB))
+$(call allow,$(CONFIG),RF_RAM_STYLE,auto distributed block registers)
+$(call allow,$(CONFIG),IQ_RAM_STYLE,auto distributed block registers)
+$(call allow,tools.mk,IMPL_EFFORT,default performance)
+
+# Vivado from tools.mk, or found with locate
+VIVADO_BIN = $(if $(filter auto,$(VIVADO)),$(shell locate bin/vivado | grep '/bin/vivado$$' | head -1),$(VIVADO))
+XBIN       = $(dir $(VIVADO_BIN))
+
+# Test: tb/tests/<suite>/<TEST>/ (.s or .c), all when empty
+TEST ?=
+FW   ?=
+PRJ  ?=
+ifneq ($(TEST),)
+ifeq ($(wildcard tb/tests/*/$(TEST)),)
+$(error Test $(TEST) not found in tb/tests/*/)
+endif
+endif
+
+# Domain and action from the command line
+DOMAINS = cpu fpga
+ACTIONS = sim synth bitstream fw-update
+DOMAIN  = $(firstword $(filter $(DOMAINS),$(MAKECMDGOALS)))
+ACTION  = $(firstword $(filter $(ACTIONS),$(MAKECMDGOALS)))
+
+.PHONY: help check $(DOMAINS) $(ACTIONS) cpu-sim cpu-sim-np cpu-sim-prj cpu-synth fpga-sim fpga-bitstream \
+	fpga-fw-update fw-build clear-results ip impl sweep res clean FORCE
+
+# Print commands and options
 help:
-	@echo "Simulation (TEST=<name>: one test, default all):"
-	@echo "  make sim        <TEST=...>               regression, no project"
-	@echo "  make sim-prj    <TEST=...>               regression, Vivado project"
-	@echo "  make sim-bd     <TEST=...>               regression on the CPU platform"
-	@echo "  make res        <TEST=...>               last results"
+	@echo "CPU (TEST=<name>: one test from tb/tests/*/<name>/, default all):"
+	@echo "  make cpu sim       <TEST=...> <PRJ=1>      regression in xsim, PRJ=1 through a Vivado project"
+	@echo "  make cpu synth                             out-of-context synthesis and implementation"
 	@echo ""
-	@echo "FPGA (PROG=<program>: default last compiled test; settings in RV32I/config.mk):"
-	@echo "  make ip                                  package CPU IP"
-	@echo "  make synth      <PROG=...> <PERIOD=...>  CPU synthesis & implementation"
-	@echo "  make bitstream  <PROG=...>               FPGA bitstream"
-	@echo "  make all        <PROG=...>               sim, then bitstream"
-	@echo "  make sweep                               size sweep (~3 h)"
-	@echo "  make fw         <FW=...>                 firmware to PROG format (out/fw)"
-	@echo "  make fw-update  <FW=...>                 firmware into the built bitstream, no rebuild"
-	@echo "  make clean                               remove out/"
+	@echo "FPGA (PLATFORM=$(PLATFORM) BOARD=$(BOARD), FW=<name> from sw/fw/<platform>/, default $(DEFAULT_FW)):"
+	@echo "  make fpga sim      <TEST=...>              regression on the platform block design"
+	@echo "  make fpga sim      FW=<name>               firmware run for the waveform"
+	@echo "  make fpga bitstream <FW=...>               bitstream with the firmware"
+	@echo "  make fpga fw-update FW=<name>              firmware into the built bitstream"
+	@echo ""
+	@echo "  make check                                 tools and configuration"
+	@echo "  make res                                   status of all runs"
+	@echo "  make clean                                 remove out/"
 
-# Regression, then bitstream
-all: sim
-	@$(MAKE) --no-print-directory bitstream
+# Tools present and usable, configuration already checked when parsing
+check:
+	@ok=1; \
+	[ -x "$(VIVADO_BIN)" ] || { echo "tools.mk: Vivado not found (VIVADO = $(VIVADO))"; ok=0; }; \
+	for t in $(CROSS)-gcc $(CROSS)-as $(CROSS)-objdump $(CROSS)-objcopy gcc perl od truncate; do \
+		command -v $$t > /dev/null || { echo "tools.mk: $$t not found"; ok=0; }; \
+	done; \
+	[ -f "$$($(CROSS)-gcc -march=rv32i -mabi=ilp32 -print-libgcc-file-name 2> /dev/null)" ] || \
+		{ echo "tools.mk: $(CROSS)-gcc has no rv32i/ilp32 libgcc"; ok=0; }; \
+	$(PYTHON) -c "import playwright" 2> /dev/null || { echo "tools.mk: $(PYTHON) has no playwright"; ok=0; }; \
+	[ $$ok = 1 ]
+
+# Dispatch: make cpu sim -> cpu-sim
+$(DOMAINS): check
+	@$(MAKE) --no-print-directory $(if $(ACTION),$@-$(ACTION),help)
+
+$(ACTIONS):
+	@$(if $(DOMAIN),:,echo "Use: make cpu $@ or make fpga $@"; exit 1)
+
+cpu-bitstream cpu-fw-update fpga-synth:
+	@echo "No $(subst -, ,$@), see make help"; exit 1
 
 # Remove old test results
 clear-results:
-	@rm -f $(addprefix $(TEST_DIR)/$(if $(TEST),$(TEST),*test)/,comparison_results.txt ipc.txt)
+	@rm -f $(RES_DIR)/$(or $(TEST),*)/comparison_results.txt $(RES_DIR)/$(or $(TEST),*)/ipc.txt
 
-# Non-project simulation
-XBIN        = $(dir $(VIVADO))
-NP_DIR      = $(OUT)/sim_np
+# CPU simulation, non-project snapshot
+NP_DIR      = $(CPU_SIM_OUT)/sim_np
 NP_SNAPSHOT = tb_np
 NP_STAMP    = $(NP_DIR)/.$(NP_SNAPSHOT).stamp
-NP_PROGRAM  = $(CURDIR)/$(OUT)/tests/assembly_code_bin.txt
-NP_GENERICS = $(foreach g,$(CORE_GENERICS) $(SIM_GENERICS),-generic_top "$(g)=$($(g))")
+NP_PROGRAM  = $(CURDIR)/$(TEST_DIR)/instr_mem.txt
+NP_DATA     = $(CURDIR)/$(TEST_DIR)/data_mem.txt
+NP_GENERICS = $(foreach g,$(CORE_GENERICS) $(TB_GENERICS),-generic_top "$(g)=$($(g))")
 
 # Sources in compile order
 NP_SRCS = \
@@ -79,103 +151,120 @@ NP_SRCS = \
 	RV32I/rtl/axi_lite_master.vhd \
 	RV32I/rtl/riscv_top.vhd \
 	RV32I/rtl/riscv_top_mem.vhd \
-	RV32I/tb/axi_lite_mem_model.vhd \
-	RV32I/tb/riscv_top_tb.vhd
+	tb/cpu/axi_lite_mem_model.vhd \
+	tb/cpu/riscv_top_tb.vhd
 
-# Configuration of the last snapshot
+# Generics of the last snapshot, a new value rebuilds it
 $(NP_DIR)/config.used: FORCE
 	@mkdir -p $(NP_DIR)
-	@cmp -s $(CONFIG) $@ || cp $(CONFIG) $@
+	@echo '$(NP_GENERICS)' | cmp -s - $@ || echo '$(NP_GENERICS)' > $@
 
 # Build simulation snapshot
 $(NP_STAMP): $(NP_SRCS) $(NP_DIR)/config.used
 	@echo "Building simulation snapshot (non-project)"
-	@mkdir -p $(NP_DIR)
+	@mkdir -p $(NP_DIR) $(TEST_DIR)
 	@cd $(NP_DIR) && $(XBIN)xvhdl -2008 $(addprefix $(CURDIR)/,$(NP_SRCS)) > /dev/null || { grep -E 'ERROR' xvhdl.log; exit 1; }
-	@cd $(NP_DIR) && $(XBIN)xelab -debug typical $(NP_GENERICS) -generic_top "PROGRAM_FILE=$(NP_PROGRAM)" work.riscv_top_tb -s $(NP_SNAPSHOT) > /dev/null || { grep -E 'ERROR' xelab.log; exit 1; }
+	@cd $(NP_DIR) && $(XBIN)xelab -debug typical $(NP_GENERICS) -generic_top "PROGRAM_FILE=$(NP_PROGRAM)" -generic_top "DATA_FILE=$(NP_DATA)" work.riscv_top_tb -s $(NP_SNAPSHOT) > /dev/null || { grep -E 'ERROR' xelab.log; exit 1; }
 	@touch $@
 
-# Regression without project
-sim: $(NP_STAMP) clear-results
+# CPU regression, xsim or Vivado project
+cpu-sim: RES_DIR = $(CPU_SIM_OUT)
+cpu-sim: $(if $(PRJ),cpu-sim-prj,cpu-sim-np)
+	@./$(TB_SCRIPTS)/verdict.sh "$(TEST)" $(CPU_SIM_OUT)
+
+cpu-sim-np: RES_DIR = $(CPU_SIM_OUT)
+cpu-sim-np: $(NP_STAMP) clear-results
+	@touch $(TEST_DIR)/instr_mem.txt $(TEST_DIR)/data_mem.txt
 	@START_TIME=$$(date +%s); \
-	cd $(NP_DIR) && TEST=$(TEST) $(XBIN)xsim $(NP_SNAPSHOT) -tclbatch $(CURDIR)/$(TCL_DIR)/run_np.tcl; \
+	cd $(NP_DIR) && TEST=$(TEST) $(XBIN)xsim $(NP_SNAPSHOT) -tclbatch $(CURDIR)/$(TB_TCL)/run_np.tcl; \
 	ELAPSED=$$(( $$(date +%s) - START_TIME )); \
 	echo "Simulation time: $$((ELAPSED / 60)) min $$((ELAPSED % 60)) s"
-	@./RV32I/scripts/verdict.sh $(TEST)
 
-# Regression through the project
-sim-prj: clear-results
+cpu-sim-prj: RES_DIR = $(CPU_SIM_OUT)
+cpu-sim-prj: clear-results
+	@mkdir -p $(CPU_SIM_OUT)
 	@START_TIME=$$(date +%s); \
-	$(VIVADO) -mode batch -source $(VIVADO_SCRIPT) -tclargs $(if $(TEST),$(TEST),regression) -nojournal -nolog; \
+	$(VIVADO_BIN) -mode batch -journal $(CPU_SIM_OUT)/vivado.jou -log $(CPU_SIM_OUT)/vivado.log -source $(VIVADO_SCRIPT) -tclargs $(or $(TEST),regression); \
 	ELAPSED=$$(( $$(date +%s) - START_TIME )); \
 	echo "Simulation time: $$((ELAPSED / 60)) min $$((ELAPSED % 60)) s"
-	@./RV32I/scripts/verdict.sh $(TEST)
 
-# FPGA build (Zybo)
-PROG      ?= $(CURDIR)/$(OUT)/tests/assembly_code_bin.txt
-PERIOD    ?=
+# CPU out-of-context synthesis and implementation; any program, an empty memory would be optimized away
+cpu-synth:
+	@mkdir -p $(CPU_OUT)/synth
+	@./$(TB_SCRIPTS)/prepare.sh full_test cpu > /dev/null
+	@START_TIME=$$(date +%s); \
+	$(VIVADO_BIN) -mode batch -nojournal -log $(CPU_OUT)/synth/vivado.log -source $(TCL_DIR)/synth_ooc.tcl -tclargs $(CURDIR)/$(TEST_DIR)/instr_mem.txt > /dev/null || { grep -E '^ERROR' $(CPU_OUT)/synth/vivado.log; exit 1; }; \
+	echo "Synthesis and implementation done in $$(( $$(date +%s) - START_TIME )) s"
+	@python3 RV32I/scripts/critical_paths.py $(CPU_OUT)/synth/paths.txt > $(CPU_OUT)/synth/critical_paths.txt
+	@head -11 $(CPU_OUT)/synth/critical_paths.txt
 
-# CPU IP packaging
+# CPU IP packaging (needed by the platform)
 ip:
+	@mkdir -p $(CPU_OUT)
 	@START_TIME=$$(date +%s); \
-	$(VIVADO) -mode batch -nojournal -log $(OUT)/ip_package.log -source $(TCL_DIR)/package_ip.tcl > /dev/null || { grep -E '^ERROR' $(OUT)/ip_package.log; exit 1; }; \
+	$(VIVADO_BIN) -mode batch -nojournal -log $(CPU_OUT)/ip_package.log -source $(TCL_DIR)/package_ip.tcl > /dev/null || { grep -E '^ERROR' $(CPU_OUT)/ip_package.log; exit 1; }; \
 	echo "IP packaged in $$(( $$(date +%s) - START_TIME )) s"
 
-# Out-of-context synthesis
-synth:
-	@mkdir -p $(OUT)/synth
-	@START_TIME=$$(date +%s); \
-	$(VIVADO) -mode batch -nojournal -log $(OUT)/synth/vivado.log -source $(TCL_DIR)/synth_ooc.tcl -tclargs $(abspath $(PROG)) $(PERIOD) > /dev/null || { grep -E '^ERROR' $(OUT)/synth/vivado.log; exit 1; }; \
-	echo "Synthesis and implementation done in $$(( $$(date +%s) - START_TIME )) s"
-	@python3 RV32I/scripts/critical_paths.py $(OUT)/synth/paths.txt > $(OUT)/synth/critical_paths.txt
-	@head -11 $(OUT)/synth/critical_paths.txt
+# Firmware for the platform, default when FW is missing
+fw-build:
+	@mkdir -p $(FW_OUT)
+	@fw=$(or $(FW),$(DEFAULT_FW)); \
+	if [ ! -f sw/fw/$(PLATFORM)/$$fw.c ]; then \
+		echo "FW $$fw not found in sw/fw/$(PLATFORM), using $(DEFAULT_FW)"; fw=$(DEFAULT_FW); \
+	fi; \
+	sw/common/build.sh sw/fw/$(PLATFORM)/$$fw.c $(FW_OUT)/$$fw fpga/platforms/$(PLATFORM)/$(PLATFORM).mk && \
+	echo $$fw > $(FW_OUT)/selected
 
-# Zybo bitstream
-bitstream: ip
-	@mkdir -p $(OUT)/bitstream
+# Platform regression, or firmware run with FW
+fpga-sim: RES_DIR = $(BD_SIM_OUT)
+fpga-sim: ip $(if $(FW),fw-build,clear-results)
+	@mkdir -p $(BD_SIM_OUT)
 	@START_TIME=$$(date +%s); \
-	$(VIVADO) -mode batch -nojournal -log $(OUT)/bitstream/vivado.log -source $(TCL_DIR)/bitstream.tcl -tclargs $(abspath $(PROG)) > /dev/null || { grep -E '^ERROR' $(OUT)/bitstream/vivado.log; exit 1; }; \
-	echo "Bitstream done in $$(( $$(date +%s) - START_TIME )) s"
-	@python3 RV32I/scripts/critical_paths.py $(OUT)/bitstream/paths.txt > $(OUT)/bitstream/critical_paths.txt
-	@head -11 $(OUT)/bitstream/critical_paths.txt
+	TEST=$(TEST) FW_DIR=$(if $(FW),$(CURDIR)/$(FW_OUT)/$$(cat $(FW_OUT)/selected)) \
+	$(VIVADO_BIN) -mode batch -nojournal -log $(BD_SIM_OUT)/sim_bd.log -source $(TB_TCL)/sim_bd.tcl > /dev/null || { grep -E '^ERROR' $(BD_SIM_OUT)/sim_bd.log; exit 1; }; \
+	ELAPSED=$$(( $$(date +%s) - START_TIME )); \
+	echo "Block design simulation time: $$((ELAPSED / 60)) min $$((ELAPSED % 60)) s"
+	@$(if $(FW),grep -h '^Waveform' $(BD_SIM_OUT)/sim_bd.log,./$(TB_SCRIPTS)/verdict.sh "$(TEST)" $(BD_SIM_OUT))
 
-# Size sweep: IPC everywhere, synth on a subset
+# Platform bitstream with the firmware
+BIT_DIR = $(FPGA_OUT)/bitstream
+fpga-bitstream: ip fw-build
+	@mkdir -p $(BIT_DIR)
+	@fw=$$(cat $(FW_OUT)/selected); START_TIME=$$(date +%s); \
+	$(VIVADO_BIN) -mode batch -nojournal -log $(BIT_DIR)/vivado.log -source $(FPGA_TCL)/bitstream.tcl \
+		-tclargs $(CURDIR)/$(FW_OUT)/$$fw/instr_mem.txt $(CURDIR)/$(FW_OUT)/$$fw/data_mem.txt > /dev/null || { grep -E '^ERROR' $(BIT_DIR)/vivado.log; exit 1; }; \
+	echo $$fw > $(BIT_DIR)/firmware; \
+	echo "Bitstream with $$fw done in $$(( $$(date +%s) - START_TIME )) s"
+	@python3 RV32I/scripts/critical_paths.py $(BIT_DIR)/paths.txt > $(BIT_DIR)/critical_paths.txt
+	@head -11 $(BIT_DIR)/critical_paths.txt
+
+# Firmware code and data into the built bitstream (no rebuild)
+fpga-fw-update: fw-build
+	@fw=$$(cat $(FW_OUT)/selected); dir=$(CURDIR)/$(FW_OUT)/$$fw; \
+	data=""; [ -s $$dir/data_mem.txt ] && data="-data $$dir/$${fw}_dmem.elf -proc dmem"; \
+	cd $(BIT_DIR) && $(XBIN)updatemem -force -meminfo mem.mmi -data $$dir/$${fw}_imem.elf -proc imem $$data \
+		-bit design_1_wrapper.bit -out design_1_wrapper_$$fw.bit > /dev/null || { grep -E 'ERROR' updatemem.log; exit 1; }; \
+	echo "Bitstream: $(BIT_DIR)/design_1_wrapper_$$fw.bit"
+
+# Tools, see RV32I/README.md: place and route only, sweep
+IMPL_DIR = $(FPGA_OUT)/impl/$(PLACE_DIRECTIVE)_$(ROUTE_DIRECTIVE)
+impl:
+	@mkdir -p $(IMPL_DIR)
+	@START_TIME=$$(date +%s); \
+	$(VIVADO_BIN) -mode batch -nojournal -log $(IMPL_DIR)/vivado.log -source $(FPGA_TCL)/impl.tcl > /dev/null || { grep -E '^ERROR' $(IMPL_DIR)/vivado.log; exit 1; }; \
+	echo "Implementation done in $$(( $$(date +%s) - START_TIME )) s"
+	@python3 RV32I/scripts/critical_paths.py $(IMPL_DIR)/paths.txt > $(IMPL_DIR)/critical_paths.txt
+	@head -4 $(IMPL_DIR)/critical_paths.txt
+
 sweep:
 	@python3 RV32I/scripts/sweep.py
 
-# Regression on the Zybo block design
-sim-bd: ip clear-results
-	@START_TIME=$$(date +%s); \
-	TEST=$(TEST) $(VIVADO) -mode batch -nojournal -log $(OUT)/sim_bd.log -source $(TCL_DIR)/sim_bd.tcl > /dev/null || { grep -E '^ERROR' $(OUT)/sim_bd.log; exit 1; }; \
-	ELAPSED=$$(( $$(date +%s) - START_TIME )); \
-	echo "Block design simulation time: $$((ELAPSED / 60)) min $$((ELAPSED % 60)) s"
-	@./RV32I/scripts/verdict.sh $(TEST)
-
-# Firmware to instruction memory format
-FW     ?= led_blink
-FW_SRC  = RV32I/fw
-FW_DIR  = $(OUT)/fw
-fw:
-	@mkdir -p $(FW_DIR)
-	@riscv64-unknown-elf-as -march=rv32i $(FW_SRC)/$(FW).s -o $(FW_DIR)/$(FW).o
-	@riscv64-unknown-elf-objdump -d $(FW_DIR)/$(FW).o | awk '/^ +[0-9a-f]+:/{print $$2}' | perl -ne 'chomp; printf "%032b\n", hex($$_)' > $(FW_DIR)/$(FW).bin
-	@riscv64-unknown-elf-ld -m elf32lriscv -Ttext=0 -e 0 $(FW_DIR)/$(FW).o -o $(FW_DIR)/$(FW).elf
-	@rm -f $(FW_DIR)/$(FW).o
-	@echo "Firmware: $(FW_DIR)/$(FW).bin, $(FW_DIR)/$(FW).elf"
-
-# Firmware into the built bitstream (no rebuild)
-BIT_DIR = $(OUT)/bitstream
-fw-update: fw
-	@$(XBIN)updatemem -force -meminfo $(BIT_DIR)/imem.mmi -data $(FW_DIR)/$(FW).elf -proc imem \
-		-bit $(BIT_DIR)/design_1_wrapper.bit -out $(BIT_DIR)/design_1_wrapper_$(FW).bit > $(BIT_DIR)/updatemem.log || { grep -E 'ERROR' $(BIT_DIR)/updatemem.log; exit 1; }
-	@echo "Bitstream: $(BIT_DIR)/design_1_wrapper_$(FW).bit"
-
-# Show test results
+# Status of all runs
 res:
-	@./RV32I/scripts/verdict.sh $(TEST)
+	@python3 $(TB_SCRIPTS)/status.py
 
 # Clean generated files
 clean:
-	rm -rf $(OUT) .Xil RV32I/scripts/__pycache__
+	rm -rf out .Xil RV32I/scripts/__pycache__ tb/scripts/__pycache__
 	rm -f vivado*.jou vivado*.log
 	@echo "Clean finished"

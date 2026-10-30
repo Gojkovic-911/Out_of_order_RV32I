@@ -1,26 +1,45 @@
 # Source and output paths
 set root      [file normalize [file join [file dirname [info script]] ../../..]]
 set src       $root/RV32I
-set scripts   $src/scripts
-set tests_src $src/tb/tests
-set out_dir   $root/out
-set tests_out $out_dir/tests
-set prog_file $tests_out/assembly_code_bin.txt
-file mkdir $tests_out
+set tb        $root/tb
+set scripts   $tb/scripts
+set tests_src $tb/tests/stress_tests
+set out_dir   $root/out/RV32I
+set tests_out $root/out/tb/tests
+set cpu_sim_out $root/out/tb/cpu
+set prog_file $tests_out/instr_mem.txt
+set data_file $tests_out/data_mem.txt
+file mkdir $out_dir $tests_out
 
-# Load config.mk into cfg
+# Platform and board selection
+set platform  [expr {[info exists env(PLATFORM)] ? $env(PLATFORM) : "simple"}]
+set board     [expr {[info exists env(BOARD)] ? $env(BOARD) : "zybo"}]
+set platform_dir $root/fpga/platforms/$platform
+set board_dir    $root/fpga/boards/$board
+set fpga_out     $root/out/fpga/${platform}_$board
+set bd_sim_out   $root/out/tb/fpga/${platform}_$board
+
+# Load cpu.mk, <platform>.mk, board.mk, tools.mk, tb.mk into cfg; make exports command line overrides
 array set cfg {}
-set cfg_file $src/config.mk
-if {[info exists env(CONFIG_MK)]} {
-    set cfg_file $env(CONFIG_MK)
-}
-set fh [open $cfg_file]
-foreach line [split [read $fh] "\n"] {
-    if {[regexp {^\s*(\w+)\s*=\s*(.*?)\s*$} $line -> name value]} {
-        set cfg($name) $value
+set cfg_files [list \
+    [expr {[info exists env(CONFIG_MK)] ? $env(CONFIG_MK) : "$src/cpu.mk"}] \
+    $platform_dir/$platform.mk \
+    $board_dir/board.mk \
+    $root/tools.mk \
+    $tb/tb.mk]
+foreach cfg_file $cfg_files {
+    set fh [open $cfg_file]
+    foreach line [split [read $fh] "\n"] {
+        if {[regexp {^\s*(\w+)\s*=\s*(.*?)\s*$} $line -> name value]} {
+            set cfg($name) [expr {[info exists env(CFG_$name)] ? $env(CFG_$name) : $value}]
+        }
     }
+    close $fh
 }
-close $fh
+
+# CPU synthesis target: own value, or the selected platform / board
+if {$cfg(SYNTH_CLK_MHZ) eq "platform"} { set cfg(SYNTH_CLK_MHZ) $cfg(CPU_CLK_MHZ) }
+if {$cfg(SYNTH_PART) eq "board"}       { set cfg(SYNTH_PART) $cfg(PART) }
 
 set part          $cfg(PART)
 set max_jobs      $cfg(MAX_JOBS)
@@ -38,13 +57,13 @@ proc effort_args {step} {
     if {$cfg(IMPL_EFFORT) ne "performance"} {
         return {}
     }
-    return [dict get {
-        synth    {-directive PerformanceOptimized -retiming}
-        opt      {-directive Explore}
-        place    {-directive ExtraTimingOpt}
-        phys_opt {-directive AggressiveExplore}
-        route    {-directive AggressiveExplore}
-    } $step]
+    return [dict get [list \
+        synth    [list -directive $cfg(SYNTH_DIRECTIVE) -retiming] \
+        opt      [list -directive $cfg(OPT_DIRECTIVE)] \
+        place    [list -directive $cfg(PLACE_DIRECTIVE)] \
+        phys_opt [list -directive $cfg(PHYS_OPT_DIRECTIVE)] \
+        route    [list -directive $cfg(ROUTE_DIRECTIVE)] \
+    ] $step]
 }
 
 # Worst setup paths, one per endpoint

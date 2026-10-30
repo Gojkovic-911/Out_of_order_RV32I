@@ -8,7 +8,9 @@ entity BRAM is
       (
          WADDR     : natural := 10;
          -- Initial contents from file
-         INIT_FILE : string  := ""
+         INIT_FILE : string  := "";
+         -- Simulation: reload INIT_FILE on the first clock (restart, no new elaboration)
+         SIM_LOAD  : boolean := false
          );
    port
       (
@@ -66,8 +68,17 @@ begin
    process(clk)
       variable a_idx : natural range 0 to WORDS - 1;
       variable b_idx : natural range 0 to WORDS - 1;
+      -- pragma translate_off
+      variable loaded : boolean := false;
+      -- pragma translate_on
    begin
       if(rising_edge(clk)) then
+         -- pragma translate_off
+         if SIM_LOAD and not loaded then
+            loaded := true;
+            ram_s  <= init_ram;
+         end if;
+         -- pragma translate_on
          a_idx := to_integer(unsigned(addr_a_i(WADDR - 1 downto 2)));
          b_idx := to_integer(unsigned(addr_b_i(WADDR - 1 downto 2)));
          if(en_a_i = '1') then

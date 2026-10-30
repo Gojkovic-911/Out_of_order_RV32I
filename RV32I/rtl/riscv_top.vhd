@@ -54,6 +54,7 @@ architecture structural of riscv_top is
     
     signal decode_instr_format_s    : std_logic_vector(2 downto 0);
     signal fetch_is_jump_s         : std_logic;
+    signal fetch_is_jalr_s         : std_logic;
     
     signal dispatch_instr_type_s    : std_logic_vector(3 downto 0);
     signal dispatch_instr_subtype_s  : std_logic_vector(4 downto 0);
@@ -126,6 +127,7 @@ begin
             
             decode_instr_format_i    => decode_instr_format_s,
             fetch_is_jump_i         => fetch_is_jump_s,
+            fetch_is_jalr_i         => fetch_is_jalr_s,
             
             rename_rd_we_i           => rename_rd_we_s,
             rename_rs1_used_i        => rename_rs1_used_s,
@@ -163,6 +165,7 @@ begin
             instr_format_o           => decode_instr_format_s,
             
             fetch_is_jump_o         => fetch_is_jump_s,
+            fetch_is_jalr_o         => fetch_is_jalr_s,
             
             rename_rd_we_o           => rename_rd_we_s,
             rename_rs1_used_o        => rename_rs1_used_s,

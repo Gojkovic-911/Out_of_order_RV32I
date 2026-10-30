@@ -16,7 +16,9 @@ entity riscv_top_mem is
             RF_RAM_STYLE   : string   := "auto";
             IQ_RAM_STYLE   : string   := "distributed";
             -- Program loaded at synthesis
-            INIT_FILE   : string  := "");
+            INIT_FILE   : string  := "";
+            -- Simulation: reload INIT_FILE on the first clock
+            SIM_LOAD    : boolean := false);
    port(
       -- Clock and reset
       clk                 : in  std_logic;
@@ -102,7 +104,8 @@ begin
    INSTR_MEM: entity work.BRAM
       generic map (
          WADDR     => WADDR,
-         INIT_FILE => INIT_FILE
+         INIT_FILE => INIT_FILE,
+         SIM_LOAD  => SIM_LOAD
       )
       port map (
          clk        => clk,

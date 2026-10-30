@@ -42,6 +42,7 @@ entity data_path is
         -- Control signals
         decode_instr_format_i   : in  std_logic_vector(2 downto 0);
         fetch_is_jump_i        : in  std_logic;
+        fetch_is_jalr_i        : in  std_logic;
         
         rename_rd_we_i           : in  std_logic;
         rename_rs1_used_i        : in  std_logic;
@@ -98,6 +99,10 @@ architecture Behavioral of data_path is
     signal decode_pc_reg_s              : std_logic_vector(DATA_WIDTH-1 downto 0);
     signal decode_instr_valid_s         : std_logic;
     signal decode_is_jump_s             : std_logic;
+    signal decode_is_jalr_s             : std_logic;
+    signal jalr_wait_s                  : std_logic;
+    signal jalr_redirect_s              : std_logic;
+    signal jalr_redirect_addr_s         : std_logic_vector(DATA_WIDTH-1 downto 0);
     
     -- Rename signals
     signal rename_rs1_arch_addr_s       : std_logic_vector(ARCH_ADDR_BITS-1 downto 0);
@@ -273,13 +278,18 @@ begin
     
     jump_redirect_s <= decode_is_jump_s and (not stall_id_i);
     
-    fetch_ok_s      <= fetch_instr_valid_s and (not jump_redirect_s);
+    fetch_ok_s      <= fetch_instr_valid_s and (not jump_redirect_s) and (not decode_is_jalr_s) and (not jalr_wait_s);
     
     -- Next fetch address
-    fetch_addr:process (flush_pipe_i, pc_next_sel_i, pc_revert_addr_s, jump_redirect_s, decode_pc_reg_s, decode_imm_s,
+    fetch_addr:process (flush_pipe_i, pc_next_sel_i, pc_revert_addr_s, jalr_redirect_s, jalr_redirect_addr_s,
+                        jump_redirect_s, decode_pc_reg_s, decode_imm_s, decode_is_jalr_s, jalr_wait_s,
                         stall_if_i, fetch_pc_s, pc_reg_s) begin
         if (flush_pipe_i = '1' and pc_next_sel_i = '1') then
             fetch_addr_s <= pc_revert_addr_s;
+        elsif (jalr_redirect_s = '1') then
+            fetch_addr_s <= jalr_redirect_addr_s;
+        elsif (decode_is_jalr_s = '1' or jalr_wait_s = '1') then
+            fetch_addr_s <= fetch_pc_s;
         elsif (jump_redirect_s = '1') then
             fetch_addr_s <= std_logic_vector(unsigned(decode_pc_reg_s) + unsigned(decode_imm_s));
         elsif (stall_if_i = '1') then
@@ -299,7 +309,7 @@ begin
                 pc_reg_s            <= (others => '0');
                 fetch_pc_s          <= (others => '0');
                 fetch_instr_valid_s <= '0';
-            elsif (flush_pipe_i = '1' or jump_redirect_s = '1' or stall_if_i = '0') then
+            elsif (flush_pipe_i = '1' or jalr_redirect_s = '1' or jump_redirect_s = '1' or stall_if_i = '0') then
                 fetch_pc_s          <= fetch_addr_s;
                 fetch_instr_valid_s <= '1';
                 pc_reg_s            <= std_logic_vector(unsigned(fetch_addr_s) + to_unsigned(4, DATA_WIDTH));
@@ -313,6 +323,7 @@ begin
         if rising_edge(clk) then
             if reset = '0' or flush_pipe_i = '1' then
                 decode_is_jump_s        <= '0';
+                decode_is_jalr_s        <= '0';
                 decode_instruction_s    <= (others => '0');
                 decode_pc_reg_s         <= (others => '0');
                 decode_instr_valid_s    <= '0';
@@ -320,6 +331,7 @@ begin
             elsif stall_id_i = '0'then 
                 if (fetch_ok_s = '1') then
                     decode_is_jump_s        <= fetch_is_jump_i;
+                    decode_is_jalr_s        <= fetch_is_jalr_i;
                     decode_instruction_s    <= fetch_instruction_s;
                     decode_pc_reg_s         <= fetch_pc_s;
                     if fetch_instruction_s = std_logic_vector(to_unsigned(0, DATA_WIDTH)) then
@@ -329,6 +341,7 @@ begin
                     end if;
                 else
                     decode_is_jump_s        <= '0';
+                    decode_is_jalr_s        <= '0';
                     decode_instruction_s    <= (others => '0');
                     decode_instr_valid_s    <= '0';
                 end if;
@@ -573,12 +586,34 @@ begin
         
         if (execute_valid_s = '0') then
             null;
-        elsif (execute_instr_type_s = JALR) then
-            rob_branch_addr_valid_s <= '1';
-            rob_branch_addr_s <= std_logic_vector(unsigned(execute_rs1_data_s) + unsigned(execute_imm_s)) and x"FFFFFFFE";
         elsif (execute_instr_type_s = BRANCH) then
             rob_branch_addr_valid_s <= '1';
             rob_branch_addr_s <= std_logic_vector(unsigned(execute_pc_reg_s) + to_unsigned(4, DATA_WIDTH));
+        end if;
+    end process;
+    
+    -- JALR redirect from EX, registered
+    jalr_redirect:
+    process (clk)
+    begin
+        if rising_edge(clk) then
+            if reset = '0' or flush_pipe_i = '1' then
+                jalr_wait_s          <= '0';
+                jalr_redirect_s      <= '0';
+                jalr_redirect_addr_s <= (others => '0');
+            else
+                jalr_redirect_s <= '0';
+                if (decode_is_jalr_s = '1' and stall_id_i = '0') then
+                    jalr_wait_s <= '1';
+                elsif (jalr_redirect_s = '1') then
+                    jalr_wait_s <= '0';
+                end if;
+                
+                if (jalr_wait_s = '1' and jalr_redirect_s = '0' and execute_valid_s = '1' and execute_instr_type_s = JALR) then
+                    jalr_redirect_s      <= '1';
+                    jalr_redirect_addr_s <= std_logic_vector(unsigned(execute_rs1_data_s) + unsigned(execute_imm_s)) and x"FFFFFFFE";
+                end if;
+            end if;
         end if;
     end process;
     

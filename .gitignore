@@ -4,5 +4,3 @@ out/
 *.jou
 *.log
 __pycache__
-# Local only
-SHA3_platform

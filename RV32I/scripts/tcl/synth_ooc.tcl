@@ -7,7 +7,7 @@ cd $out_dir
 set rtl     $src/rtl
 set out     $out_dir/synth
 set prog    [file normalize [lindex $argv 0]]
-set period  [expr {[llength $argv] > 1 ? [lindex $argv 1] : 1000.0 / $cpu_clk_mhz}]
+set period  [expr {[llength $argv] > 1 ? [lindex $argv 1] : 1000.0 / $cfg(SYNTH_CLK_MHZ)}]
 file mkdir $out
 
 read_vhdl -vhdl2008 [list \
@@ -43,7 +43,7 @@ puts $fh "create_clock -name clk -period $period \[get_ports clk\]"
 close $fh
 read_xdc -mode out_of_context $xdc
 
-# Generics from config.mk
+# Generics from cpu.mk
 set generics {}
 foreach g [cfg_generics CORE_GENERICS] {
     lappend generics -generic $g
@@ -51,7 +51,7 @@ foreach g [cfg_generics CORE_GENERICS] {
 foreach name $cfg(SYNTH_GENERICS) {
     lappend generics -generic "$name=\"$cfg($name)\""
 }
-synth_design -top riscv_top_mem -part $part -mode out_of_context {*}$generics -generic "INIT_FILE=\"$prog\"" {*}[effort_args synth]
+synth_design -top riscv_top_mem -part $cfg(SYNTH_PART) -mode out_of_context {*}$generics -generic "INIT_FILE=\"$prog\"" {*}[effort_args synth]
 report_utilization                -file $out/utilization_synth.rpt
 report_utilization -hierarchical  -file $out/utilization_synth_hier.rpt
 report_ram_utilization            -file $out/ram_synth.rpt

@@ -3,73 +3,76 @@ Out‑of‑order RISC‑V (RV32I) Core in VHDL
 
 ## General Info
 
-- Goal: port Zephyr RTOS to the core, run an application on it, then connect the board to the network 
 - Flow: everything runs in the Vivado flow (xsim simulation, synthesis, implementation, IP packaging, bitstream)
-- Validation: assembly stress tests, register state compared against a golden model
-- Components:
-  - Fetch with static (always-taken) branch prediction
-  - Rename: Rename Table, Commit Rename Table, Free List
-  - Reorder Buffer (ROB), branch recovery at commit
-  - Instruction Queue (IQ), issues only instructions with both operands ready
-  - ALU, Branch Unit, Address Generation Unit
-  - Load/Store Queue (LSQ) and Load/Store Unit (LSU)
-  - Central Data Bus (CDB)
-  - AXI-Lite master to the data memory
-  - Instruction memory inside the CPU, updated in the generated bitstream through updatemem
+- Validation: assembly stress tests (register state compared against a golden model) and C benchmarks (result compared against the same code run on the host)
+- CPU components: [RV32I/README.md](RV32I/README.md)
 
 ## Requirements
 
 - Vivado 2023.2
 - gcc-riscv64-unknown-elf
-- System Python 3 (`/usr/bin/python3`) with playwright (`pip install playwright`, `playwright install chromium`) for the golden vectors; the Vivado Python is not used
+- System Python 3 (`/usr/bin/python3`) with playwright (`pip install playwright`; `playwright install chromium`) for the golden vectors; the Vivado Python is not used
 
 ## Commands
 ```bash
-# Simulation (TEST=<name>: one test, default all)
-make sim         # <TEST=...>               regression, no project
-make sim-prj     # <TEST=...>               regression, Vivado project
-make sim-bd      # <TEST=...>               regression on the CPU platform
-make res         # <TEST=...>               last results
+# CPU (TEST=<name>: Test from tb/tests/*/<name.s|.c>, default=regression)
+make cpu sim        # <TEST=...> <PRJ=1>       simulation in xsim, PRJ for Vivado project
+make cpu synth      # <TEST=...> <PERIOD=...>  out-of-context synthesis and implementation
 
-# FPGA (PROG=<program>: default last compiled test; settings in RV32I/config.mk)
-make ip          #                          package CPU IP
-make synth       # <PROG=...> <PERIOD=...>  CPU synthesis & implementation
-make bitstream   # <PROG=...>               FPGA bitstream
-make all         # <PROG=...>               sim, then bitstream
-make fw-update   # <FW=...>                 firmware into the built bitstream, no rebuild
-make clean       #                          remove generated files
+# FPGA (PLATFORM =<name>: Platform from fpga/platforms/<name>,   default=simple
+#       BOARD    =<name>: Board    from fpga/boards/<name>,      default=zybo ; 
+#       FW       =<name>: FW       from sw/fw/<name.c>           default=led_blink
+
+make fpga sim       # <TEST=...>               regression on the CPU platform
+make fpga sim       # FW=<name>                firmware run for the waveform
+make fpga bitstream # <FW=...>                 FPGA bitstream with the firmware
+make fpga fw-update # FW=<name>                firmware into the built bitstream, no rebuild
+
+make res            #                          status of all runs
+make clean          #                          remove out/
 ```
+
+## Configuration
+
+make reads `RV32I/cpu.mk`, `fpga/platforms/<platform>/<platform>.mk`, `fpga/boards/<board>/board.mk`, `tb/tb.mk` and `tools.mk`, stops when a value is missing or invalid, and passes every value to the scripts; a value given on the command line (`make cpu synth SYNTH_CLK_MHZ=130`) overrides the file. 
+
+Each file is described in the README next to it, `tools.mk` table:
+
+| Parameter | Default | Description |
+|---|---|---|
+| `VIVADO` | `auto` | Vivado path, `auto`: locate |
+| `CROSS` | `riscv64-unknown-elf` | RISC-V toolchain prefix |
+| `PYTHON` | `/usr/bin/python3` | Python with playwright |
+| `CFLAGS` | `-O2 -mstrict-align` | C flags |
+| `MAX_JOBS` | 3 | parallel Vivado runs |
+| `IMPL_EFFORT` | `performance` | `default` or `performance` |
+| `SYNTH_DIRECTIVE` ... `ROUTE_DIRECTIVE` | | step directives |
+
+`make check` checks the tools.
 
 ## CPU
 
-### <ins>Configuration</ins>
+### <ins>Simulation</ins>
 
-`RV32I/config.mk`, passed to simulation, synthesis and the IP:
+`make cpu sim` runs every test in `tb/tests/*/` on the CPU with an AXI-Lite data memory model.
 
-- Generics in rtl: `NUM_PHYS_REGS`, `ROB_DEPTH`, `IQ_DEPTH`, `LSQ_DEPTH` ...
-- Simulation: `DATA_MEM_MIN_WAIT`, `DATA_MEM_MAX_WAIT` (random wait cycles of the AXI data memory model; only in the CPU simulation, the platform uses the real BRAM)
+#### Adding a New Test
+
+1. Open a new folder with the name of your test in `tb/tests/user/` (either `.s` or `.c`)
+2. Put your `test_name.s|.c` into it
+3. Run `make cpu sim TEST=test_name`
 
 ### <ins>Implementation Results</ins>
 
 | Resource | Used | Available | % |
 |---|---:|---:|---:|
-| LUT (of which LUTRAM) | 3 967 (86) | 17 600 | 23 % |
-| Flip-flop | 3 690 | 35 200 | 10 % |
+| LUT (of which LUTRAM) | 2 968 (74) | 17 600 | 17 % |
+| Flip-flop | 2 850 | 35 200 | 8 % |
 | Block RAM (36 Kb) | 5.5 | 60 | 9 % |
 
-Timing is met at 120 MHz (worst slack +0.03 ns)
+Timing is met at 120 MHz (worst slack +0.25 ns)
 
-Estimated power 0.167 W.
-
-### <ins>Simulation</ins>
-
-`make sim` and `make sim-prj` run the regression on the CPU with an AXI-Lite data memory model.
-
-#### Adding a New Test
-
-1. Open a new folder with the name of your test in `RV32I/tb/tests/`
-2. Put `test_name.s` file into it
-3. Run `make sim TEST=test_name`
+Estimated power 0.137 W.
 
 ### <ins>Run Times</ins>
 
@@ -77,17 +80,11 @@ Vivado 2023.2, 16-thread machine, 16 GB RAM, 3-4 parallel jobs:
 
 | Command | Time |
 |---|---:|
-| `make sim` (13 tests, golden vectors cached) | 27 s |
-| `make sim-prj` (11 tests) | 3 min 03 s |
-| `make synth` (CPU only) | 3 min 22 s |
+| `make cpu sim` (14 tests, golden vectors cached) | 50 s |
+| `make cpu sim PRJ=1` | 1 min 37 s |
+| `make cpu synth` | 5 min 13 s |
 
 ## FPGA
-
-### <ins>Configuration</ins>
-
-`RV32I/config.mk`, passed to the CPU platform and the bitstream flow:
-
-- `PART`, `MAX_JOBS`, clocks, address map
 
 ### <ins>CPU Platform</ins>
 
@@ -101,28 +98,28 @@ Whole CPU platform:
 
 | Resource | Used | Available | % |
 |---|---:|---:|---:|
-| LUT (of which LUTRAM) | 4 318 (176) | 17 600 | 24 % |
-| Flip-flop | 3 900 | 35 200 | 11 % |
-| Block RAM (36 Kb) | 8.5 | 60 | 14 % |
+| LUT (of which LUTRAM) | 3 176 (75) | 17 600 | 18 % |
+| Flip-flop | 2 856 | 35 200 | 8 % |
+| Block RAM (36 Kb) | 9.5 | 60 | 16 % |
 | MMCM / IOB | 1 / 6 | 2 / 100 | |
 
-Timing is met at 120 MHz (worst slack +0.01 ns); estimated power 0.303 W (0.120 W clock wizard MMCM).
+Timing is met at 120 MHz (worst slack +0.16 ns); estimated power 0.261 W (0.120 W clock wizard MMCM).
 
 ### <ins>Simulation</ins>
 
-`make sim-bd` runs the regression on the CPU platform.
+`make fpga sim` runs the regression on the CPU platform; `make fpga sim FW=<name>` runs the firmware for a fixed time and saves the waveform.
 
 ### <ins>Changing the Firmware</ins>
 
-The instruction memory is inside the CPU, so the program is part of the bitstream. `make fw-update FW=<name>` assembles `RV32I/fw/<name>.s` and writes it into the built bitstream with updatemem (`out/bitstream/design_1_wrapper_<name>.bit`), without a new synthesis or implementation.
+The instruction memory is inside the CPU, so the program is part of the bitstream. `make fpga fw-update FW=<name>` builds `sw/fw/<platform>/<name>.c` and writes its code and data into the built bitstream with updatemem (`out/fpga/<platform>_<board>/bitstream/design_1_wrapper_<name>.bit`), without a new synthesis or implementation.
 
 ### <ins>Run Times</ins>
 
 | Command | Time |
 |---|---:|
-| `make sim-bd` (13 tests) | 8 min |
-| `make bitstream` | ~ 14 min |
-| `fw-update` | 10 s |
+| `make fpga sim` (14 tests) | 2 min 44 s |
+| `make fpga bitstream` | ~ 17 min |
+| `make fpga fw-update` | 17 s |
 
 ## TODO
 
@@ -139,8 +136,8 @@ The instruction memory is inside the CPU, so the program is part of the bitstrea
 
 ## Debug
 
-If the Makefile does not find Vivado through `locate` (`VIVADO`, `Makefile` line 9), run `sudo updatedb` or give the path directly:
+If the Makefile does not find Vivado through `locate`, run `sudo updatedb`, set `VIVADO` in `tools.mk` or give the path directly:
 
 ```bash
-make sim VIVADO=/tools/Xilinx/Vivado/2023.2/bin/vivado
+make cpu sim VIVADO=/tools/Xilinx/Vivado/2023.2/bin/vivado
 ```

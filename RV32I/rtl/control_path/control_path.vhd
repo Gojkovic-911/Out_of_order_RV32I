@@ -18,6 +18,7 @@ entity control_path is
         instr_format_o          : out std_logic_vector(2 downto 0);
         
         fetch_is_jump_o        : out std_logic;
+        fetch_is_jalr_o        : out std_logic;
 
         rename_rd_we_o          : out std_logic;
         rename_rs1_used_o       : out std_logic;
@@ -98,7 +99,8 @@ begin
         )
         port map(
             fetch_intr_i    => instruction_i,
-            is_jump_o       => fetch_is_jump_o
+            is_jump_o       => fetch_is_jump_o,
+            is_jalr_o       => fetch_is_jalr_o
         );
         
     -- IF/ID register
@@ -217,6 +219,7 @@ begin
         stall_ex_s      <= '0';
         stall_iq_is_o   <= '0';
         
+        -- Rename stage stalls
         if(rob_full_i = '1' or (free_list_fifo_empty_i = '1' and rename_rd_we_s = '1') or lsq_full_i = '1') then
             stall_if_o <= '1';
             stall_id_s <= '1';
@@ -231,11 +234,11 @@ begin
             stall_is_s <= '1';
         end if;          
         
+        -- Execute stage stalls
         if(ex_busy_i = '1') then
             stall_ex_s    <= '1';
             stall_iq_is_o <= '1';
         end if;
-        
     end process;
     
     stall_rn_o  <= stall_rn_s;
