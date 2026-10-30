@@ -15,26 +15,42 @@ Out‑of‑order RISC‑V (RV32I) Core in VHDL
 
 ## Commands
 ```bash
-# CPU (TEST=<name>: Test from tb/tests/*/<name.s|.c>, default=regression)
+# CPU 
+#  TEST=<name>: Test from tb/tests/*/<name.s|.c>, default=regression
 make cpu sim        # <TEST=...> <PRJ=1>       simulation in xsim, PRJ for Vivado project
-make cpu synth      # <TEST=...> <PERIOD=...>  out-of-context synthesis and implementation
+make cpu synth      # Out-of-context synthesis and implementation
 
-# FPGA (PLATFORM =<name>: Platform from fpga/platforms/<name>,   default=simple
-#       BOARD    =<name>: Board    from fpga/boards/<name>,      default=zybo ; 
-#       FW       =<name>: FW       from sw/fw/<name.c>           default=led_blink
+# FPGA 
+#  PLATFORM=<name> : Platform from fpga/platforms/<name>,   default=simple
+#  BOARD=<name>    : Board    from fpga/boards/<name>,      default=zybo  
+#  FW=<name>       : FW       from sw/fw/<name.c>           default=led_blink
 
-make fpga sim       # <TEST=...>               regression on the CPU platform
-make fpga sim       # FW=<name>                firmware run for the waveform
+make fpga sim       # <TEST=...> <FW=...>      regression on the CPU platform
 make fpga bitstream # <FW=...>                 FPGA bitstream with the firmware
-make fpga fw-update # FW=<name>                firmware into the built bitstream, no rebuild
+make fpga fw-update # <FW=...>                 firmware into the built bitstream
 
 make res            #                          status of all runs
 make clean          #                          remove out/
 ```
 
+Up to 4 projects generated in total:
+
+1. `out/tb/cpu/RISCV_project`: `make cpu sim PRJ=1`
+2. `out/tb/fpga/<platform>_<board>/sim`: `make fpga sim`
+3. `out/fpga/<platform>_<board>/project`: `make fpga bitstream`
+4. `out/RV32I/ip_package`: CPU IP packaging, used by the FPGA commands
+
 ## Configuration
 
-make reads `RV32I/cpu.mk`, `fpga/platforms/<platform>/<platform>.mk`, `fpga/boards/<board>/board.mk`, `tb/tb.mk` and `tools.mk`, stops when a value is missing or invalid, and passes every value to the scripts; a value given on the command line (`make cpu synth SYNTH_CLK_MHZ=130`) overrides the file. 
+The Makefile reads the following configuration:
+
+- `RV32I/cpu.mk`
+- `fpga/platforms/<platform>/<platform>.mk`
+- `fpga/boards/<board>/board.mk`
+- `tb/tb.mk`
+- `tools.mk`
+
+Stops when a value is missing or invalid, and passes every value to the scripts; a value given on the command line (`make cpu synth SYNTH_CLK_MHZ=130`) overrides the file. 
 
 Each file is described in the README next to it, `tools.mk` table:
 
