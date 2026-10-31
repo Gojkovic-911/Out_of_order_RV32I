@@ -25,7 +25,7 @@ set cfg_files [list \
     [expr {[info exists env(CONFIG_MK)] ? $env(CONFIG_MK) : "$src/cpu.mk"}] \
     $platform_dir/$platform.mk \
     $board_dir/board.mk \
-    $root/tools.mk \
+    $root/tools/tools.mk \
     $tb/tb.mk]
 foreach cfg_file $cfg_files {
     set fh [open $cfg_file]

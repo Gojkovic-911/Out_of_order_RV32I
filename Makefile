@@ -23,7 +23,7 @@ TEST_DIR      = $(TB_OUT)/tests
 
 # CPU, platform, board, tools and testbench configuration
 CONFIG    ?= RV32I/cpu.mk
-CFG_FILES  = $(CONFIG) fpga/platforms/$(PLATFORM)/$(PLATFORM).mk fpga/boards/$(BOARD)/board.mk tools.mk tb/tb.mk
+CFG_FILES  = $(CONFIG) fpga/platforms/$(PLATFORM)/$(PLATFORM).mk fpga/boards/$(BOARD)/board.mk tools/tools.mk tb/tb.mk
 include $(CFG_FILES)
 export CONFIG_MK := $(abspath $(CONFIG))
 
@@ -44,13 +44,13 @@ allow   = $(if $(filter $(3),$($(2))),,$(error $(1): $(2) = $($(2)), allowed: $(
 $(call require,$(CONFIG),$(REQ_CPU))
 $(call require,fpga/platforms/$(PLATFORM)/$(PLATFORM).mk,$(REQ_PLATFORM))
 $(call require,fpga/boards/$(BOARD)/board.mk,$(REQ_BOARD))
-$(call require,tools.mk,$(REQ_TOOLS))
+$(call require,tools/tools.mk,$(REQ_TOOLS))
 $(call require,tb/tb.mk,$(REQ_TB))
 $(call allow,$(CONFIG),RF_RAM_STYLE,auto distributed block registers)
 $(call allow,$(CONFIG),IQ_RAM_STYLE,auto distributed block registers)
-$(call allow,tools.mk,IMPL_EFFORT,default performance)
+$(call allow,tools/tools.mk,IMPL_EFFORT,default performance)
 
-# Vivado from tools.mk, or found with locate
+# Vivado from tools/tools.mk, or found with locate
 VIVADO_BIN = $(if $(filter auto,$(VIVADO)),$(shell locate bin/vivado | grep '/bin/vivado$$' | head -1),$(VIVADO))
 XBIN       = $(dir $(VIVADO_BIN))
 
@@ -92,13 +92,13 @@ help:
 # Tools present and usable, configuration already checked when parsing
 check:
 	@ok=1; \
-	[ -x "$(VIVADO_BIN)" ] || { echo "tools.mk: Vivado not found (VIVADO = $(VIVADO))"; ok=0; }; \
+	[ -x "$(VIVADO_BIN)" ] || { echo "tools/tools.mk: Vivado not found (VIVADO = $(VIVADO))"; ok=0; }; \
 	for t in $(CROSS)-gcc $(CROSS)-as $(CROSS)-objdump $(CROSS)-objcopy gcc perl od truncate; do \
-		command -v $$t > /dev/null || { echo "tools.mk: $$t not found"; ok=0; }; \
+		command -v $$t > /dev/null || { echo "tools/tools.mk: $$t not found"; ok=0; }; \
 	done; \
 	[ -f "$$($(CROSS)-gcc -march=rv32i -mabi=ilp32 -print-libgcc-file-name 2> /dev/null)" ] || \
-		{ echo "tools.mk: $(CROSS)-gcc has no rv32i/ilp32 libgcc"; ok=0; }; \
-	$(PYTHON) -c "import playwright" 2> /dev/null || { echo "tools.mk: $(PYTHON) has no playwright"; ok=0; }; \
+		{ echo "tools/tools.mk: $(CROSS)-gcc has no rv32i/ilp32 libgcc"; ok=0; }; \
+	$(PYTHON) -c "import playwright" 2> /dev/null || { echo "tools/tools.mk: $(PYTHON) has no playwright"; ok=0; }; \
 	[ $$ok = 1 ]
 
 # Dispatch: make cpu sim -> cpu-sim

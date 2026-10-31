@@ -1,12 +1,14 @@
 # Machine and tool settings
-# Format: NAME = value (comments on their own line, never after a value).
 
 # Vivado binary, auto: found with locate
 VIVADO             = auto
+
 # RISC-V toolchain prefix
 CROSS              = riscv64-unknown-elf
+
 # Python with playwright (golden vectors)
 PYTHON             = /usr/bin/python3
+
 # C flags for the CPU: no misaligned accesses
 CFLAGS             = -O2 -mstrict-align
 

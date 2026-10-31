@@ -43,6 +43,7 @@ Out-of-order RV32I core in VHDL, Vivado-only flow, running on FPGA (Zybo, Zynq-7
   - `common/crt0.S` gp, sp, zero `.bss`, `call main`, then jump past the code into zero words (idle-fetch stop); result stays in a0
   - `common/build.sh <src dir|file> <out> [<platform>.mk] [--host]` (IMEM 2^WADDR, DMEM from <platform>.mk or 0..2^WADDR) generates `memory.ld` + `platform.h` (every `*_BASE` and `*_MHZ` from <platform>.mk), compiles with libgcc (no M extension), writes `instr_mem.txt` / `data_mem.txt` (one 32-bit binary word per line), `.dis`, `.map`, `<app>_imem.elf` (code only, for updatemem), and with `--host` `expected.txt` from a host run (`common/host_main.c`, app main renamed `app_main`)
   - `fw/<platform>/<name>.c` platform firmware: `simple/led_blink.c` (GPIO counter, delay from CPU_CLK_MHZ)
+- `tools/` `tools.mk` (machine and tool settings), `README.md` with its table and the list of caches with run times
 - `out/` everything generated, same layout as the repository (`make clean` removes it)
   - `out/RV32I/` `synth/`, `ip_repo/`, `ip_package/`, `sweep/`
   - `out/fpga/<platform>_<board>/` `project/`, `bitstream/` (+ `firmware` name, `data_mem.coe`), `impl/<place>_<route>/`
@@ -61,11 +62,12 @@ Out-of-order RV32I core in VHDL, Vivado-only flow, running on FPGA (Zybo, Zynq-7
 - `make cpu synth` CPU out-of-context synthesis + implementation (~5 min) at SYNTH_CLK_MHZ on SYNTH_PART; full_test sits in the instruction memory only so the memory is not optimized away
 - `make fpga sim` all tests on the platform block design: first run builds the Vivado sim project (~2-3 min, `sim_bd.tcl`), later runs with unchanged inputs (md5 of CPU RTL, fpga/rtl, platform_bd.tcl, platform tb, sim_bd.tcl and all config values, `snapshot.key`) run the snapshot in plain xsim (`run_bd.tcl`, ~50 s for 14 tests, ~10 s for FW); `make ip` repackages only when the CPU RTL changes, `make fpga sim FW=<name>` firmware run for the waveform (no check, `SIM_US`, default 200)
 - `make fpga bitstream <FW=...>` (~15-26 min), firmware from `sw/fw/<platform>/`; missing or unknown FW falls back to DEFAULT_FW with a message
+- `make fpga bitstream` uses the Vivado IP cache `out/fpga/ip_cache` for the Xilinx IPs (clk_wiz, gpio, proc_sys_reset, interconnect); cache entries of the CPU and dmem (our RTL) are deleted before each build, so they are always synthesized (BD IPs cannot be excluded with generate_synth_checkpoint, read-only). Saves ~1.5 min
 - `make fpga fw-update FW=<name>` code (`<fw>_imem.elf`, proc imem) and, when present, data (`<fw>_dmem.elf`, proc dmem) into the built bitstream with updatemem and `bitstream/mem.mmi` (~17 s)
 - `make res` status of all runs (tests PASS count, synth/bitstream WNS/WHS/LUT, firmware); `python3 tb/scripts/cycles_report.py` cycle accounting
 - `ip` package the CPU IP (dependency of fpga targets); `make impl` place and route only from the last bitstream synthesis (sweep tool, ~17 min); `make sweep` and `sweep.py --directives` documented in RV32I/README.md, report in `out/RV32I/sweep/results.md`
 - `make check` tools present (Vivado, toolchain + rv32i libgcc, gcc, perl, python with playwright); runs before every `make cpu|fpga ...`. At parse time make stops on a missing (REQ_* lists) or invalid (RAM styles, IMPL_EFFORT) value, naming the file
-- Configuration files: `RV32I/cpu.mk`, `fpga/platforms/<p>/<platform>.mk` (+ GPIO_WIDTH), `fpga/boards/<b>/board.mk`, `tools.mk` (VIVADO, CROSS, PYTHON, CFLAGS, MAX_JOBS, IMPL_EFFORT, all step directives), `tb/tb.mk` (TB_GENERICS for riscv_top_tb, MAX_CYCLES); each described in the README next to it, tools.mk in the main README; any value can be given on the command line
+- Configuration files: `RV32I/cpu.mk`, `fpga/platforms/<p>/<platform>.mk` (+ GPIO_WIDTH), `fpga/boards/<b>/board.mk`, `tools/tools.mk` (VIVADO, CROSS, PYTHON, CFLAGS, MAX_JOBS, IMPL_EFFORT, all step directives), `tb/tb.mk` (TB_GENERICS for riscv_top_tb, MAX_CYCLES); each described in the README next to it (`tools/README.md` also lists the caches); any value can be given on the command line
 - `make clean` removes `out/`, `.Xil`, Vivado logs
 - `CONFIG=<file>` uses another CPU config (sweeps, experiments); `VIVADO=<path>` if `locate` does not find Vivado
 - Never run two Vivado jobs at the same time (machine runs out of memory). Never `make clean` while a build runs (Vivado loses its working directory). When stopping Vivado, kill by PID; `pkill -f` with a pattern that also matches your own shell command kills the shell.
@@ -100,14 +102,16 @@ Out-of-order RV32I core in VHDL, Vivado-only flow, running on FPGA (Zybo, Zynq-7
 
 ## Status (update as the project moves)
 
-- 2026-10-29: folder restructure (RV32I/ CPU, fpga/ platforms and boards, separate out/ folders) and JALR EX redirect done, not yet committed at the time of writing.
-- Known bug: with DATA_MEM_MIN_WAIT..MAX_WAIT of 3..3, 4..4 or 0..8, six tests fail (call, compare, flush_mem, loop, memory, stall); 0..3 and 0..5 pass. Not debugged.
-- 2026-10-29: every make target verified in the new layout; bitstream with JALR meets 120 MHz with WNS +0.001 ns, WHS +0.031 ns (4 356 LUT, 3 881 FF, 0.281 W). Critical paths: dispatch_ptr / iq_ffs.valid in the IQ.
-- Note: with NUM_PHYS_REGS = 64 at most ~33 rd-writing instructions are in flight, so ROB_DEPTH above 32 rarely fills.
-- 2026-10-30: size sweep done (all 36 points 13/13, IPC 0.318-0.329, IQ 16 has no 120 MHz margin, IQ_RAM_STYLE has no effect: payload always LUTRAM); default set to ROB 32 / IQ 8 / LSQ 8.
-- 2026-10-30: tb/ + single out/ restructure and sw/ C flow done (CPU target only). crc32 passes: 34 982 cycles, IPC 0.41, 1 541 mispredicts (refill 18%) from the data-dependent branch under always-taken prediction.
-- Next: platform target for sw (dmem via updatemem, `platform.h` GPIO), benchmarks (Embench/CoreMark), later place x route sweep on 32/8/8.
-- Plans waiting in README TODO and in memory: RF/IQ ram_style in the size sweep, directive sweep, platform selection docs.
+- 2026-10-31: flow work finished and committed: layout (RV32I/, fpga/, tb/, sw/, tools/, single out/), `make cpu|fpga` commands, split configuration with checks, C flow on the CPU and the platform (dmem init, updatemem for both memories), caches (listed in tools/). All targets pass: cpu sim 14/14, fpga sim 14/14, cpu synth WNS +0.254 ns, bitstream WNS +0.164 ns at 120 MHz (3 176 LUT).
+- Default configuration ROB 32 / IQ 8 / LSQ 8 (size sweep 2026-10-30: IPC barely depends on sizes, IQ 16 has no 120 MHz margin; with 64 physical registers ROB above 32 rarely fills).
+- Next phase is CPU design; flow changes only when the design needs them. Open design topics, roughly by value:
+  - IPC ~0.3 bound by the 4-cycle dependency loop (select, read, execute, CDB/wakeup); a wakeup/bypass shortcut is the biggest lever
+  - branch prediction: always-taken costs 18% refill on crc32 (34 982 cycles, IPC 0.41); JALR stalls fetch until EX
+  - M extension (multiplier), then the Zephyr list above (Zicsr, traps, timer, UART)
+  - critical path: IQ full -> stall chain (`iq_ffs.valid` / `dispatch_ptr`); backpressure TODO
+  - known bug: memory waits 3..3, 4..4 or 0..8 fail six tests (call, compare, flush_mem, loop, memory, stall); not debugged
+  - verification: Spike golden model (Cornell has no lbu; lh/lbu/lhu/sh uncovered), C benchmarks (Embench/CoreMark)
+- Measure every design change with `make cpu sim` (IPC per test, `cycles_report.py`) and `make cpu synth` (WNS), then `make fpga bitstream` before claiming timing.
 
 ## Working rules
 
@@ -115,6 +119,6 @@ Out-of-order RV32I core in VHDL, Vivado-only flow, running on FPGA (Zybo, Zynq-7
 - Propose changes first (what, where, how); edit only after the user says to. Explain before optimizing.
 - Commit and push straight to `main`, never create branches; no Co-Authored-By line; short English commit messages.
 - Comments: at most one short comment (3-5 words) per 10+ lines, architecture/steps only; config files, Makefile targets and xdc blocks get a comment each.
-- README has a fixed structure: update numbers only, add text only for a new section or when asked.
+- Readme files are locked (`.claude/hooks/readme_lock.py`): Claude changes only numbers, the user writes all text.
 - When mentioning a file, give a clickable link with the line number.
 - The user writes in Serbian/Croatian; answer in the same language. Repository content is in English.

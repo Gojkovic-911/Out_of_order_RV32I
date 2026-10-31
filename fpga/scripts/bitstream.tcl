@@ -18,6 +18,13 @@ if {![file exists $prog]} {
 }
 
 create_project project $prj_dir -part $part -force
+# Xilinx IPs from the IP cache; our RTL entries (CPU, data memory) are dropped, so they are always synthesized
+set ip_cache $root/out/fpga/ip_cache
+file mkdir $ip_cache
+foreach d [glob -nocomplain -types d $ip_cache/*] {
+    if {[exec find $d -name "*CPU_0*" -o -name "*dmem_0*"] ne ""} { file delete -force $d }
+}
+config_ip_cache -use_cache_location $ip_cache
 set_property ip_repo_paths $out_dir/ip_repo [current_project]
 update_ip_catalog
 

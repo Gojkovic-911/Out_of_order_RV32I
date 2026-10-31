@@ -10,7 +10,7 @@ import time
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 BASE_CFG = os.path.join(ROOT, 'RV32I', 'cpu.mk')
-TOOLS_MK = os.path.join(ROOT, 'tools.mk')
+TOOLS_MK = os.path.join(ROOT, 'tools', 'tools.mk')
 TESTS_SRC = os.path.join(ROOT, 'tb', 'tests', 'stress_tests')
 TESTS = os.path.join(ROOT, 'out', 'tb', 'cpu')
 PROGS = os.path.join(ROOT, 'out', 'tb', 'tests')
