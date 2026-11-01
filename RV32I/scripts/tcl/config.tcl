@@ -5,11 +5,12 @@ set tb        $root/tb
 set scripts   $tb/scripts
 set tests_src $tb/tests/stress_tests
 set out_dir   $root/out/RV32I
+set fpga_ip_repo $root/out/fpga/ip_repo
 set tests_out $root/out/tb/tests
 set cpu_sim_out $root/out/tb/cpu
 set prog_file $tests_out/instr_mem.txt
 set data_file $tests_out/data_mem.txt
-file mkdir $out_dir $tests_out
+file mkdir $out_dir $tests_out $fpga_ip_repo
 
 # Platform and board selection
 set platform  [expr {[info exists env(PLATFORM)] ? $env(PLATFORM) : "simple"}]

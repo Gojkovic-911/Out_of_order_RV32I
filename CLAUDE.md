@@ -1,6 +1,6 @@
 # Out_of_order_RV32I
 
-Out-of-order RV32I core in VHDL, Vivado-only flow, running on FPGA (Zybo, Zynq-7010, PL only, no PS7). Long-term goal: port Zephyr RTOS and put the board on the network. Zephyr needs, in order: Zicsr, M-mode traps (mstatus, mtvec, mepc, mcause, mtval, mie, mip, mscratch, ecall/ebreak/mret, precise exceptions at commit), machine timer (mtime/mtimecmp), UART console, unified instruction/data address space (loads must read .rodata), fence/fence.i, more memory, then a Zephyr SoC/board port. A SHA3 accelerator platform (fpga/platforms/sha3) is planned for Zephyr crypto/PSA later.
+Out-of-order RV32I core in VHDL, Vivado-only flow, running on FPGA (Zybo, Zynq-7010, PL only, no PS7). Long-term goal: port Zephyr RTOS and put the board on the network. Zephyr needs, in order: Zicsr, M-mode traps (mstatus, mtvec, mepc, mcause, mtval, mie, mip, mscratch, ecall/ebreak/mret, precise exceptions at commit), machine timer (mtime/mtimecmp), UART console, unified instruction/data address space (loads must read .rodata), fence/fence.i, more memory, then a Zephyr SoC/board port. A SHA3 accelerator platform (fpga/platforms/sha3, IP in fpga/ip/sha3) is planned for Zephyr crypto/PSA later.
 
 ## Layout and where to find things
 
@@ -26,13 +26,16 @@ Out-of-order RV32I core in VHDL, Vivado-only flow, running on FPGA (Zybo, Zynq-7
 - `fpga/`
   - `scripts/bitstream.tcl` project, block design, implementation, reports, MMI; `scripts/impl.tcl` place and route only from the last platform synthesis (`make impl`); `scripts/mem_mmi.tcl` (`write_mem_mmi`: one MMI with `imem` and `dmem` processors, 4 byte-lane RAMB36 each)
   - `rtl/axi_lite_ram.vhd` data memory for every platform: AXI4-Lite slave, byte writes, registered read, generics ADDR_BITS, INIT_FILE, SIM_LOAD; module reference in the block design (no IP packaging), plain VHDL
+  - `rtl/axi_lite_regs.vhd` AXI4-Lite slave for our register IPs: one-cycle `wr_en`/`wr_addr`/`wr_data`/`wr_strb`, `rd_en`/`rd_addr` with `rd_data` sampled into rdata (same handshake as axi_lite_ram)
   - `platforms/simple/` CPU + 16 KB data memory (`dmem_0`, axi_lite_ram) + 4-bit GPIO + clock wizard + proc_sys_reset
     - `<platform>.mk` (CPU_CLK_MHZ, DMEM_BASE, DMEM_SIZE, GPIO_BASE, DEFAULT_FW), `platform_bd.tcl` (`create_platform_bd <bd> <instr_mem.txt> <data_mem.txt> <sim_load>`, `mem_bits` for ADDR_BITS from DMEM_SIZE)
-  - `platforms/sha3/` empty placeholder (`.gitkeep`) for the planned SHA3 accelerator platform
+  - `ip/sha3/` SHA3-256 accelerator IP (reusable by any platform): `sha3.vhd` top (AXI-Lite regs 0x0 block count, 0x4 start (held until accepted), 0x8 status bit0 ready / bit1 done; 64-bit AXIS in/out with tlast on the 4th digest lane, input tready only while waiting for a block; no interrupt; one clock `aclk`, reset `aresetn`), `sha3_control.vhd` (FSM idle, load, theta1, theta2, rhopi, chi, iota, finish: 5 cycles per round, 24 rounds per block), `sha3_datapath.vhd` (state A(x, y), C after theta1, B after rho/pi, 17-lane input block, block word w into A(w mod 5, w / 5)); OOC 120 MHz WNS +0.429 ns (path FSM state -> CE of the 1600 B flip-flops, fanout), 2 927 LUT / 4 776 FF; `package_ip.tcl` packages it with `fpga/rtl/axi_lite_regs.vhd` into `out/fpga/ip_repo/sha3` (top plain VHDL: the packager does not fully support a VHDL-2008 top)
+  - `platforms/sha3/` planned platform (CPU + AXI DMA + SHA3, polled), empty for now
   - `boards/zybo/` `board.mk` (PART, BOARD_CLK_MHZ), `zybo.xdc` (clock L16, BTN0 reset R18, LD0-LD3)
 - `tb/` everything that runs or checks a simulation, shared by the CPU and the platforms
   - `cpu/` `riscv_top_tb.vhd` CPU testbench (instruction BRAM, AXI-Lite memory model, cycle-accounting counters via VHDL-2008 external names, idle-fetch stop after 200 cycles of instruction 0), `axi_lite_mem_model.vhd` (random MIN..MAX wait per handshake, LFSR; generic INIT_FILE loaded during reset, tb generic DATA_FILE = `out/tb/tests/data_mem.txt`, empty for asm tests), `.wcfg`
   - `fpga/<platform>/platform_tb.vhd` platform testbench (generic BOARD_CLK_MHZ)
+  - `fpga/ip/<ip>/` IP testbenches: `sha3/` SHA3 testbench `sha3_ip_tb.vhd` (AXI-Lite + AXIS with random stalls, checks tvalid hold) and `sha3_vectors.py <dir>` (padded lanes `in.txt`, hashlib digests `exp.txt`); no make target yet, run by hand with xvhdl/xelab/xsim in `out/tb/fpga/ip/sha3/`
   - `tests/stress_tests/<name>/<name>.s` assembly stress tests (13, golden model), run by `make cpu sim` and `make fpga sim`
   - `tests/benchmark/<name>/*.c` self-checking C programs (result in a0 vs host run): `crc32` (uses lbu, `__mulsi3`)
   - `coverage/implemented_instructions.md` instruction table (first column read), `coverage/coverage.py` coverage report (room for a coverage tool later)
@@ -46,6 +49,7 @@ Out-of-order RV32I core in VHDL, Vivado-only flow, running on FPGA (Zybo, Zynq-7
 - `tools/` `tools.mk` (machine and tool settings), `README.md` with its table and the list of caches with run times
 - `out/` everything generated, same layout as the repository (`make clean` removes it)
   - `out/RV32I/` `synth/`, `ip_repo/`, `ip_package/`, `sweep/`
+  - `out/fpga/ip_repo/<ip>/` + `ip_package/` our fpga IPs (sha3); `bitstream.tcl` and `sim_bd.tcl` use both IP repos
   - `out/fpga/<platform>_<board>/` `project/`, `bitstream/` (+ `firmware` name, `data_mem.coe`), `impl/<place>_<route>/`
   - `out/sw/fw/<platform>/<fw>/` firmware build, `selected` = firmware actually used
   - `out/tb/tests/stress_tests/<test>/` program `.dis`, golden vector; `out/tb/tests/instr_mem.txt` + `data_mem.txt` last loaded program
@@ -60,12 +64,12 @@ Out-of-order RV32I core in VHDL, Vivado-only flow, running on FPGA (Zybo, Zynq-7
 
 - `make cpu sim` all tests in `tb/tests/*/` (~50 s with cached golden vectors; golden vectors need internet after `make clean`), `TEST=<name>` one test (.s or .c found by name), `PRJ=1` through a Vivado project (~3 min); C tests run up to 1M cycles (tb clock 100 ns)
 - `make cpu synth` CPU out-of-context synthesis + implementation (~5 min) at SYNTH_CLK_MHZ on SYNTH_PART; full_test sits in the instruction memory only so the memory is not optimized away
-- `make fpga sim` all tests on the platform block design: first run builds the Vivado sim project (~2-3 min, `sim_bd.tcl`), later runs with unchanged inputs (md5 of CPU RTL, fpga/rtl, platform_bd.tcl, platform tb, sim_bd.tcl and all config values, `snapshot.key`) run the snapshot in plain xsim (`run_bd.tcl`, ~50 s for 14 tests, ~10 s for FW); `make ip` repackages only when the CPU RTL changes, `make fpga sim FW=<name>` firmware run for the waveform (no check, `SIM_US`, default 200)
+- `make fpga sim` all tests on the platform block design: first run builds the Vivado sim project (~2-3 min, `sim_bd.tcl`), later runs with unchanged inputs (md5 of CPU RTL, fpga/rtl, platform_bd.tcl, platform tb, sim_bd.tcl and all config values, `snapshot.key`) run the snapshot in plain xsim (`run_bd.tcl`, ~50 s for 14 tests, ~10 s for FW); `make ip` repackages each IP (CPU, sha3) only when its RTL changes, `make fpga sim FW=<name>` firmware run for the waveform (no check, `SIM_US`, default 200)
 - `make fpga bitstream <FW=...>` (~15-26 min), firmware from `sw/fw/<platform>/`; missing or unknown FW falls back to DEFAULT_FW with a message
 - `make fpga bitstream` uses the Vivado IP cache `out/fpga/ip_cache` for the Xilinx IPs (clk_wiz, gpio, proc_sys_reset, interconnect); cache entries of the CPU and dmem (our RTL) are deleted before each build, so they are always synthesized (BD IPs cannot be excluded with generate_synth_checkpoint, read-only). Saves ~1.5 min
 - `make fpga fw-update FW=<name>` code (`<fw>_imem.elf`, proc imem) and, when present, data (`<fw>_dmem.elf`, proc dmem) into the built bitstream with updatemem and `bitstream/mem.mmi` (~17 s)
 - `make res` status of all runs (tests PASS count, synth/bitstream WNS/WHS/LUT, firmware); `python3 tb/scripts/cycles_report.py` cycle accounting
-- `ip` package the CPU IP (dependency of fpga targets); `make impl` place and route only from the last bitstream synthesis (sweep tool, ~17 min); `make sweep` and `sweep.py --directives` documented in RV32I/README.md, report in `out/RV32I/sweep/results.md`
+- `ip` package the CPU IP (dependency of fpga targets) and the SHA3 IP (~30 s, not a dependency yet); `make impl` place and route only from the last bitstream synthesis (sweep tool, ~17 min); `make sweep` and `sweep.py --directives` documented in RV32I/README.md, report in `out/RV32I/sweep/results.md`
 - `make check` tools present (Vivado, toolchain + rv32i libgcc, gcc, perl, python with playwright); runs before every `make cpu|fpga ...`. At parse time make stops on a missing (REQ_* lists) or invalid (RAM styles, IMPL_EFFORT) value, naming the file
 - Configuration files: `RV32I/cpu.mk`, `fpga/platforms/<p>/<platform>.mk` (+ GPIO_WIDTH), `fpga/boards/<b>/board.mk`, `tools/tools.mk` (VIVADO, CROSS, PYTHON, CFLAGS, MAX_JOBS, IMPL_EFFORT, all step directives), `tb/tb.mk` (TB_GENERICS for riscv_top_tb, MAX_CYCLES); each described in the README next to it (`tools/README.md` also lists the caches); any value can be given on the command line
 - `make clean` removes `out/`, `.Xil`, Vivado logs
@@ -119,6 +123,6 @@ Out-of-order RV32I core in VHDL, Vivado-only flow, running on FPGA (Zybo, Zynq-7
 - Propose changes first (what, where, how); edit only after the user says to. Explain before optimizing.
 - Commit and push straight to `main`, never create branches; no Co-Authored-By line; short English commit messages.
 - Comments: at most one short comment (3-5 words) per 10+ lines, architecture/steps only; config files, Makefile targets and xdc blocks get a comment each.
-- Readme files are locked (`.claude/hooks/readme_lock.py`): Claude changes only numbers, the user writes all text.
+- Never edit any README file (not even numbers); the user maintains all of them. Report new numbers in the chat instead.
 - When mentioning a file, give a clickable link with the line number.
-- The user writes in Serbian/Croatian; answer in the same language. Repository content is in English.
+- Repository content is in English.

@@ -207,6 +207,15 @@ $(IP_XML): $(CPU_RTL) $(TCL_DIR)/package_ip.tcl
 	$(VIVADO_BIN) -mode batch -nojournal -log $(CPU_OUT)/ip_package.log -source $(TCL_DIR)/package_ip.tcl > /dev/null || { grep -E '^ERROR' $(CPU_OUT)/ip_package.log; exit 1; }; \
 	echo "IP packaged in $$(( $$(date +%s) - START_TIME )) s"
 
+# SHA3 accelerator IP, only when its RTL changes
+SHA3_XML = out/fpga/ip_repo/sha3/component.xml
+ip: $(SHA3_XML)
+$(SHA3_XML): $(wildcard fpga/ip/sha3/*.vhd) fpga/rtl/axi_lite_regs.vhd fpga/ip/sha3/package_ip.tcl
+	@mkdir -p out/fpga/ip_package
+	@START_TIME=$$(date +%s); \
+	$(VIVADO_BIN) -mode batch -nojournal -log out/fpga/ip_package/sha3.log -source fpga/ip/sha3/package_ip.tcl > /dev/null || { grep -E '^ERROR' out/fpga/ip_package/sha3.log; exit 1; }; \
+	echo "SHA3 IP packaged in $$(( $$(date +%s) - START_TIME )) s"
+
 # Firmware for the platform, default when FW is missing
 fw-build:
 	@mkdir -p $(FW_OUT)

@@ -25,7 +25,7 @@ foreach d [glob -nocomplain -types d $ip_cache/*] {
     if {[exec find $d -name "*CPU_0*" -o -name "*dmem_0*"] ne ""} { file delete -force $d }
 }
 config_ip_cache -use_cache_location $ip_cache
-set_property ip_repo_paths $out_dir/ip_repo [current_project]
+set_property ip_repo_paths [list $out_dir/ip_repo $fpga_ip_repo] [current_project]
 update_ip_catalog
 
 create_platform_bd $bd_name $prog $data false

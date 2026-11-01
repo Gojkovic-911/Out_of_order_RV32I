@@ -14,7 +14,7 @@ if {![file exists $data_file]} { close [open $data_file w] }
 
 set prj_dir $results/sim
 create_project sim $prj_dir -part $part -force
-set_property ip_repo_paths $out_dir/ip_repo [current_project]
+set_property ip_repo_paths [list $out_dir/ip_repo $fpga_ip_repo] [current_project]
 update_ip_catalog
 create_platform_bd design_1 $prog_file $data_file true
 
