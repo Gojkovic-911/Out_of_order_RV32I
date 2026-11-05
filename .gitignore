@@ -5,5 +5,7 @@ out/
 *.log
 __pycache__
 
-# Local Claude settings and hooks
-.claude/
+# Claude: shared settings and hooks tracked, local settings ignored
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
