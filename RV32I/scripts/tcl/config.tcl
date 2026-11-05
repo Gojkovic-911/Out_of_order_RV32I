@@ -13,7 +13,7 @@ set data_file $tests_out/data_mem.txt
 file mkdir $out_dir $tests_out $fpga_ip_repo
 
 # Platform and board selection
-set platform  [expr {[info exists env(PLATFORM)] ? $env(PLATFORM) : "simple"}]
+set platform  [expr {[info exists env(PLATFORM)] ? $env(PLATFORM) : "sha3"}]
 set board     [expr {[info exists env(BOARD)] ? $env(BOARD) : "zybo"}]
 set platform_dir $root/fpga/platforms/$platform
 set board_dir    $root/fpga/boards/$board

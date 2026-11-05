@@ -1,5 +1,5 @@
 # Simple Platform
-CPU, 16 KB data memory, GPIO, clock wizard, reset
+CPU (with IMEM & DMEM), GPIO, clock wizard, reset
 
 ## Configuration
 

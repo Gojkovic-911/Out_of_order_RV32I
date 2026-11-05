@@ -69,7 +69,7 @@ make fpga fw-update PLATFORM=sha3 FW=sha3
 
 | | |
 |---|---|
-| Simulation | stress tests 14/14, firmware GPIO 0xF at 106 us |
+| Simulation | stress tests 14/14 |
 | SHA3 | one round per cycle, 43 cycles per extra block (~380 MB/s at 120 MHz) |
 | Bitstream | WNS +0.256 ns, WHS +0.014 ns at 120 MHz |
 | Resources | 10 159 LUT, 10 908 FF, 10 RAMB36 |

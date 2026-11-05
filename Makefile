@@ -8,7 +8,7 @@ TB_TCL        = $(TB_SCRIPTS)/tcl
 VIVADO_SCRIPT = $(TB_TCL)/RISCV.tcl
 
 # FPGA platform and board (fpga only)
-PLATFORM ?= simple
+PLATFORM ?= sha3
 BOARD    ?= zybo
 export PLATFORM BOARD
 

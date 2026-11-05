@@ -9,5 +9,8 @@ GPIO_BASE     = 0x40000000
 # GPIO outputs: 1 to 4 (LD0-LD3)
 GPIO_WIDTH    = 4
 
+# Our fpga IPs: names in fpga/ip/, empty for none
+FPGA_IPS      =
+
 # Firmware: in sw/fw/simple/
 DEFAULT_FW    = led_blink

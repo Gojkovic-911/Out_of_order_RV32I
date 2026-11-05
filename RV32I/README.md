@@ -5,14 +5,16 @@ Out-of-order RV32I core, configured in [cpu.mk](cpu.mk)
 
 - Fetch with static (always-taken) branch prediction
 - Rename: Rename Table, Commit Rename Table, Free List
-- Reorder Buffer (ROB), 
+- Reorder Buffer (ROB)
 - Instruction Queue (IQ), issues only instructions with both operands ready
-- ALU, Integer
+- ALU (Integer set)
 - Branch Unit, branch recovery at commit
 - Primitive Address Generation Unit
 - Load/Store Queue (LSQ) and Load/Store Unit (LSU)
 - Central Data Bus (CDB)
 - Instruction & Data TCMs inside the CPU, updated in the generated bitstream through updatemem
+- AXI4-Lite master for the peripherals (LSU targets outside DMEM)
+- AXI4 slaves on port B of both IMEM & DMEM memories, for DMA and JTAG access, with their own reset
 
 ## Configuration
 
