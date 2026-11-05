@@ -13,7 +13,8 @@ file mkdir $out
 read_vhdl -vhdl2008 [list \
     $rtl/packages/alu_ops_pkg.vhd \
     $rtl/packages/instr_types_pkg.vhd \
-    $rtl/BRAM_byte_addressable.vhd \
+    $rtl/mem/BRAM_byte_addressable.vhd \
+    $rtl/mem/axi_bram_ctrl.vhd \
     $rtl/control_path/ctrl_decoder.vhd \
     $rtl/control_path/alu_decoder.vhd \
     $rtl/control_path/branch_predictor.vhd \
@@ -33,7 +34,7 @@ read_vhdl -vhdl2008 [list \
     $rtl/data_path/cdb.vhd \
     $rtl/data_path/data_path.vhd \
     $rtl/riscv_top.vhd \
-    $rtl/axi_lite_master.vhd]
+    $rtl/mem/axi_lite_master.vhd]
 read_vhdl $rtl/riscv_top_mem.vhd
 
 # Clock constraint
@@ -51,7 +52,7 @@ foreach g [cfg_generics CORE_GENERICS] {
 foreach name $cfg(SYNTH_GENERICS) {
     lappend generics -generic "$name=\"$cfg($name)\""
 }
-synth_design -top riscv_top_mem -part $cfg(SYNTH_PART) -mode out_of_context {*}$generics -generic "INIT_FILE=\"$prog\"" {*}[effort_args synth]
+synth_design -top riscv_top_mem -part $cfg(SYNTH_PART) -mode out_of_context {*}$generics -generic "IMEM_INIT_FILE=\"$prog\"" {*}[effort_args synth]
 report_utilization                -file $out/utilization_synth.rpt
 report_utilization -hierarchical  -file $out/utilization_synth_hier.rpt
 report_ram_utilization            -file $out/ram_synth.rpt

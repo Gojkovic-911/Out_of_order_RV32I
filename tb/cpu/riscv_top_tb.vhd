@@ -20,11 +20,13 @@ generic (
         ROB_DEPTH         : positive  := 64;
         IQ_DEPTH          : positive  := 16;
         LSQ_DEPTH         : positive  := 16;
-        WADDR             : natural   := 14;
+        IMEM_ADDR_BITS    : natural   := 14;
+        DMEM_BASE         : natural   := 0;
+        DMEM_ADDR_BITS    : natural   := 14;
+        DMEM_RD_LATENCY   : positive  := 1;
         -- Testbench generics (tb/tb.mk)
         TB_CLK_NS         : positive  := 100;
         IDLE_STOP_CYCLES  : positive  := 200;
-        DATA_MEM_BITS     : natural   := 14;
         DATA_MEM_MIN_WAIT : natural   := 0;
         DATA_MEM_MAX_WAIT : natural   := 3;
         -- Program file to run
@@ -35,134 +37,110 @@ generic (
 end entity;
 
 architecture Behavioral of riscv_top_tb is
-   file RISCV_instructions             : text open read_mode is PROGRAM_FILE;
    signal clk                          : std_logic := '0';
    signal reset                        : std_logic;
-   -- Instruction memory signals
-   signal ena_instr_s, enb_instr_s     : std_logic;
-   signal wea_instr_s, web_instr_s     : std_logic_vector(3 downto 0);
-   signal addra_instr_s, addrb_instr_s : std_logic_vector(WADDR-1 downto 0);
-   signal dina_instr_s, dinb_instr_s   : std_logic_vector(31 downto 0);
-   signal douta_instr_s, doutb_instr_s : std_logic_vector(31 downto 0);
-   signal addrb_instr_32_s             : std_logic_vector(31 downto 0);
    -- Cycle accounting, snapshot at last commit
    constant N_CNT : natural := 11;
    type cnt_t is array (0 to N_CNT-1) of natural;
    signal cnt_s, cnt_at_commit_s : cnt_t := (others => 0);
-   -- AXI4-Lite data bus
-   signal awaddr_s, araddr_s           : std_logic_vector(31 downto 0);
-   signal awprot_s, arprot_s           : std_logic_vector(2 downto 0);
-   signal awvalid_s, awready_s         : std_logic;
-   signal wdata_s, rdata_s             : std_logic_vector(31 downto 0);
-   signal wstrb_s                      : std_logic_vector(3 downto 0);
-   signal wvalid_s, wready_s           : std_logic;
-   signal bresp_s, rresp_s             : std_logic_vector(1 downto 0);
-   signal bvalid_s, bready_s           : std_logic;
-   signal arvalid_s, arready_s         : std_logic;
-   signal rvalid_s, rready_s           : std_logic;
+   -- m_axi requests (no slave in this testbench)
+   signal awvalid_s, arvalid_s         : std_logic;
 
 begin
 
-   -- Instruction memory, init and fetch
-   ena_instr_s   <= '1';
-   enb_instr_s   <= '1';
-   addrb_instr_s <= addrb_instr_32_s(WADDR-1 downto 0);
-   web_instr_s   <= (others => '0');
-   dinb_instr_s  <= (others => '0');
-   instruction_mem : entity work.BRAM(behavioral)
-      generic map(WADDR => WADDR)
-      port map (clk      => clk,
-                en_a_i   => ena_instr_s,
-                we_a_i   => wea_instr_s,
-                addr_a_i => addra_instr_s,
-                data_a_i => dina_instr_s,
-                data_a_o => douta_instr_s,
-                en_b_i   => enb_instr_s,
-                we_b_i   => web_instr_s,
-                addr_b_i => addrb_instr_s,
-                data_b_i => dinb_instr_s,
-                data_b_o => doutb_instr_s);
-
-   -- AXI-Lite data memory
-   data_mem : entity work.axi_lite_mem_model
-      generic map(WADDR => DATA_MEM_BITS, MIN_WAIT => DATA_MEM_MIN_WAIT, MAX_WAIT => DATA_MEM_MAX_WAIT,
-                  INIT_FILE => DATA_FILE)
-      port map (clk           => clk,
-                reset         => reset,
-                s_axi_awaddr  => awaddr_s,
-                s_axi_awvalid => awvalid_s,
-                s_axi_awready => awready_s,
-                s_axi_wdata   => wdata_s,
-                s_axi_wstrb   => wstrb_s,
-                s_axi_wvalid  => wvalid_s,
-                s_axi_wready  => wready_s,
-                s_axi_bresp   => bresp_s,
-                s_axi_bvalid  => bvalid_s,
-                s_axi_bready  => bready_s,
-                s_axi_araddr  => araddr_s,
-                s_axi_arvalid => arvalid_s,
-                s_axi_arready => arready_s,
-                s_axi_rdata   => rdata_s,
-                s_axi_rresp   => rresp_s,
-                s_axi_rvalid  => rvalid_s,
-                s_axi_rready  => rready_s);
-
-   -- Processor core
-   TOP_RISCV_1 : entity work.riscv_top
+   dut : entity work.riscv_top_mem
       generic map (
-         DATA_WIDTH     => DATA_WIDTH,
-         MEM_BYTES      => MEM_BYTES,
-         ARCH_ADDR_BITS => ARCH_ADDR_BITS,
-         NUM_PHYS_REGS  => NUM_PHYS_REGS,
-         ROB_DEPTH      => ROB_DEPTH,
-         IQ_DEPTH       => IQ_DEPTH,
-         LSQ_DEPTH      => LSQ_DEPTH)
+         DATA_WIDTH      => DATA_WIDTH,
+         MEM_BYTES       => MEM_BYTES,
+         ARCH_ADDR_BITS  => ARCH_ADDR_BITS,
+         NUM_PHYS_REGS   => NUM_PHYS_REGS,
+         ROB_DEPTH       => ROB_DEPTH,
+         IQ_DEPTH        => IQ_DEPTH,
+         LSQ_DEPTH       => LSQ_DEPTH,
+         IMEM_ADDR_BITS  => IMEM_ADDR_BITS,
+         DMEM_BASE       => DMEM_BASE,
+         DMEM_ADDR_BITS  => DMEM_ADDR_BITS,
+         DMEM_RD_LATENCY => DMEM_RD_LATENCY,
+         DATA_MEM_MIN_WAIT => DATA_MEM_MIN_WAIT,
+         DATA_MEM_MAX_WAIT => DATA_MEM_MAX_WAIT,
+         IMEM_INIT_FILE  => PROGRAM_FILE,
+         DMEM_INIT_FILE  => DATA_FILE,
+         SIM_LOAD        => true)
       port map (
          clk   => clk,
          reset => reset,
+         s_axi_aresetn => reset,
+         -- Port B unused in the CPU regression
+         s_axi_imem_awaddr  => (others => '0'),
+         s_axi_imem_awlen   => (others => '0'),
+         s_axi_imem_awsize  => (others => '0'),
+         s_axi_imem_awburst => (others => '0'),
+         s_axi_imem_awvalid => '0',
+         s_axi_imem_wdata   => (others => '0'),
+         s_axi_imem_wstrb   => (others => '0'),
+         s_axi_imem_wlast   => '0',
+         s_axi_imem_wvalid  => '0',
+         s_axi_imem_bready  => '0',
+         s_axi_imem_araddr  => (others => '0'),
+         s_axi_imem_arlen   => (others => '0'),
+         s_axi_imem_arsize  => (others => '0'),
+         s_axi_imem_arburst => (others => '0'),
+         s_axi_imem_arvalid => '0',
+         s_axi_imem_rready  => '0',
+         s_axi_dmem_awaddr  => (others => '0'),
+         s_axi_dmem_awlen   => (others => '0'),
+         s_axi_dmem_awsize  => (others => '0'),
+         s_axi_dmem_awburst => (others => '0'),
+         s_axi_dmem_awvalid => '0',
+         s_axi_dmem_wdata   => (others => '0'),
+         s_axi_dmem_wstrb   => (others => '0'),
+         s_axi_dmem_wlast   => '0',
+         s_axi_dmem_wvalid  => '0',
+         s_axi_dmem_bready  => '0',
+         s_axi_dmem_araddr  => (others => '0'),
+         s_axi_dmem_arlen   => (others => '0'),
+         s_axi_dmem_arsize  => (others => '0'),
+         s_axi_dmem_arburst => (others => '0'),
+         s_axi_dmem_arvalid => '0',
+         s_axi_dmem_rready  => '0',
 
-         instr_mem_data_i   => doutb_instr_s,
-         instr_mem_addr_o   => addrb_instr_32_s,
-
-         m_axi_awaddr  => awaddr_s,
-         m_axi_awprot  => awprot_s,
+         m_axi_awaddr  => open,
+         m_axi_awprot  => open,
          m_axi_awvalid => awvalid_s,
-         m_axi_awready => awready_s,
-         m_axi_wdata   => wdata_s,
-         m_axi_wstrb   => wstrb_s,
-         m_axi_wvalid  => wvalid_s,
-         m_axi_wready  => wready_s,
-         m_axi_bresp   => bresp_s,
-         m_axi_bvalid  => bvalid_s,
-         m_axi_bready  => bready_s,
-         m_axi_araddr  => araddr_s,
-         m_axi_arprot  => arprot_s,
+         m_axi_awready => '0',
+         m_axi_wdata   => open,
+         m_axi_wstrb   => open,
+         m_axi_wvalid  => open,
+         m_axi_wready  => '0',
+         m_axi_bresp   => "00",
+         m_axi_bvalid  => '0',
+         m_axi_bready  => open,
+         m_axi_araddr  => open,
+         m_axi_arprot  => open,
          m_axi_arvalid => arvalid_s,
-         m_axi_arready => arready_s,
-         m_axi_rdata   => rdata_s,
-         m_axi_rresp   => rresp_s,
-         m_axi_rvalid  => rvalid_s,
-         m_axi_rready  => rready_s);
+         m_axi_arready => '0',
+         m_axi_rdata   => (others => '0'),
+         m_axi_rresp   => "00",
+         m_axi_rvalid  => '0',
+         m_axi_rready  => open);
 
-   -- Load program, release reset
-   read_file_proc : process
-      variable row : line;
-      variable i   : integer := 0;
+   -- Tests stay inside DMEM; m_axi has no slave here
+   no_m_axi : process(clk)
    begin
-      reset       <= '0';
-      wea_instr_s <= (others => '1');
-      wait until rising_edge(clk);
-      while (not endfile(RISCV_instructions)) loop
-         readline(RISCV_instructions, row);
-         if (row'length > 0) then
-            addra_instr_s <= std_logic_vector(to_unsigned(i, WADDR));
-            dina_instr_s  <= to_std_logic_vector(string(row));
-         end if;
-         i             := i + 4;
+      if rising_edge(clk) then
+         assert reset /= '1' or (awvalid_s /= '1' and arvalid_s /= '1')
+            report "Access outside DMEM on m_axi (no slave in the CPU testbench)" severity failure;
+      end if;
+   end process;
+
+   -- Reset while the memories load their files
+   reset_proc : process
+   begin
+      reset <= '0';
+      for i in 1 to 4 loop
          wait until rising_edge(clk);
       end loop;
-      wea_instr_s <= (others => '0');
-      reset       <= '1' after 20 ns;
+      reset <= '1' after 20 ns;
       wait;
    end process;
 
@@ -176,17 +154,17 @@ begin
    -- Counters: 0 cycles, 1 commits, 2 rob_empty, 3 refill, 4 mispredicts, 5 jalr,
    -- 6 rob_full, 7 freelist, 8 lsq_full, 9 iq_full, 10 ex_busy
    cycle_count: process(clk)
-      alias commit_valid is <<signal .riscv_top_tb.TOP_RISCV_1.data_path_1.rob_commit_valid_s : std_logic>>;
-      alias rob_empty    is <<signal .riscv_top_tb.TOP_RISCV_1.data_path_1.rob_empty_s : std_logic>>;
-      alias ex_valid     is <<signal .riscv_top_tb.TOP_RISCV_1.data_path_1.ex_valid_s : std_logic>>;
-      alias ex_type      is <<signal .riscv_top_tb.TOP_RISCV_1.data_path_1.execute_instr_type_s : std_logic_vector(3 downto 0)>>;
-      alias flush        is <<signal .riscv_top_tb.TOP_RISCV_1.flush_pipe_s : std_logic>>;
-      alias stall_rn     is <<signal .riscv_top_tb.TOP_RISCV_1.stall_rn_s : std_logic>>;
-      alias rob_full     is <<signal .riscv_top_tb.TOP_RISCV_1.rob_full_s : std_logic>>;
-      alias fl_empty     is <<signal .riscv_top_tb.TOP_RISCV_1.free_list_fifo_empty_s : std_logic>>;
-      alias lsq_full     is <<signal .riscv_top_tb.TOP_RISCV_1.lsq_full_s : std_logic>>;
-      alias iq_full      is <<signal .riscv_top_tb.TOP_RISCV_1.iq_full_s : std_logic>>;
-      alias ex_busy      is <<signal .riscv_top_tb.TOP_RISCV_1.ex_busy_s : std_logic>>;
+      alias commit_valid is <<signal .riscv_top_tb.dut.CPU.data_path_1.rob_commit_valid_s : std_logic>>;
+      alias rob_empty    is <<signal .riscv_top_tb.dut.CPU.data_path_1.rob_empty_s : std_logic>>;
+      alias ex_valid     is <<signal .riscv_top_tb.dut.CPU.data_path_1.ex_valid_s : std_logic>>;
+      alias ex_type      is <<signal .riscv_top_tb.dut.CPU.data_path_1.execute_instr_type_s : std_logic_vector(3 downto 0)>>;
+      alias flush        is <<signal .riscv_top_tb.dut.CPU.flush_pipe_s : std_logic>>;
+      alias stall_rn     is <<signal .riscv_top_tb.dut.CPU.stall_rn_s : std_logic>>;
+      alias rob_full     is <<signal .riscv_top_tb.dut.CPU.rob_full_s : std_logic>>;
+      alias fl_empty     is <<signal .riscv_top_tb.dut.CPU.free_list_fifo_empty_s : std_logic>>;
+      alias lsq_full     is <<signal .riscv_top_tb.dut.CPU.lsq_full_s : std_logic>>;
+      alias iq_full      is <<signal .riscv_top_tb.dut.CPU.iq_full_s : std_logic>>;
+      alias ex_busy      is <<signal .riscv_top_tb.dut.CPU.ex_busy_s : std_logic>>;
       variable c      : cnt_t := (others => 0);
       variable refill : boolean := false;
       procedure inc(i : natural; cond : boolean) is
@@ -222,10 +200,11 @@ begin
 
    -- Stop on idle fetch
    process(clk)
+      alias instr is <<signal .riscv_top_tb.dut.instr_rdata : std_logic_vector(31 downto 0)>>;
       variable cnt : integer := 0;
    begin
       if rising_edge(clk) then
-         if doutb_instr_s = std_logic_vector(to_unsigned(0, 32)) then
+         if instr = std_logic_vector(to_unsigned(0, 32)) then
                cnt := cnt + 1;
                if cnt > IDLE_STOP_CYCLES then
                   std.env.stop;

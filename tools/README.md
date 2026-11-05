@@ -29,4 +29,4 @@ Repeated runs reuse what is still valid; `make clean` removes every cache.
 | CPU IP | `out/RV32I/ip_package/` | CPU RTL changes | `make fpga ...` | |
 | Xilinx IPs | `out/fpga/ip_cache/` | IP configuration changes | `make fpga bitstream` | 16 min 16 s (~15 min) |
 
-Not cached: `make cpu synth`, the CPU and data memory in `make fpga bitstream` (always synthesized), `make fpga fw-update`.
+Not cached: `make cpu synth`, the CPU in `make fpga bitstream` is always synthesized, `make fpga fw-update`.

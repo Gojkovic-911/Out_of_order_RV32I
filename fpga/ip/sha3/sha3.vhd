@@ -54,7 +54,7 @@ architecture rtl of sha3 is
     signal nb_s, start_s, done_s, ready_s : std_logic_vector(31 downto 0);
     signal idle_s, accept_s, load_s, result_s : std_logic;
     signal clear_s, blk_clear_s, absorb_s, blk_full_s : std_logic;
-    signal theta1_s, theta2_s, rhopi_s, chi_s, iota_s : std_logic;
+    signal rnd_s     : std_logic;
     signal round_s   : unsigned(4 downto 0);
 
     signal in_ready_s, in_beat_s : std_logic;
@@ -115,14 +115,12 @@ begin
             clk => aclk, rst => rst_s, start => start_s(0), nb => nb_s, out_busy => out_valid_s,
             blk_full => blk_full_s, idle => idle_s, accept => accept_s, load => load_s,
             result => result_s, clear => clear_s, blk_clear => blk_clear_s, absorb => absorb_s,
-            theta1 => theta1_s, theta2 => theta2_s, rhopi => rhopi_s, chi => chi_s, iota => iota_s,
-            round => round_s);
+            rnd => rnd_s, round => round_s);
 
     datapath: entity work.sha3_datapath
         port map (
             clk => aclk, rst => rst_s, clear => clear_s, absorb => absorb_s,
-            theta1 => theta1_s, theta2 => theta2_s, rhopi => rhopi_s, chi => chi_s, iota => iota_s,
-            round => round_s, blk_clear => blk_clear_s, in_valid => in_beat_s, in_data => s_axis_tdata,
+            rnd => rnd_s, round => round_s, blk_clear => blk_clear_s, in_valid => in_beat_s, in_data => s_axis_tdata,
             blk_full => blk_full_s, out_sel => out_cnt_s, out_data => m_axis_tdata);
 
     -- Input beats only while waiting for a block

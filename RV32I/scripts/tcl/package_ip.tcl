@@ -14,7 +14,8 @@ create_project ip_package $prj_dir -part $part -force
 set core_files [list \
     $rtl/packages/alu_ops_pkg.vhd \
     $rtl/packages/instr_types_pkg.vhd \
-    $rtl/BRAM_byte_addressable.vhd \
+    $rtl/mem/BRAM_byte_addressable.vhd \
+    $rtl/mem/axi_bram_ctrl.vhd \
     $rtl/control_path/ctrl_decoder.vhd \
     $rtl/control_path/alu_decoder.vhd \
     $rtl/control_path/branch_predictor.vhd \
@@ -34,7 +35,7 @@ set core_files [list \
     $rtl/data_path/cdb.vhd \
     $rtl/data_path/data_path.vhd \
     $rtl/riscv_top.vhd \
-    $rtl/axi_lite_master.vhd]
+    $rtl/mem/axi_lite_master.vhd]
 set top_file $rtl/riscv_top_mem.vhd
 
 add_files -norecurse $core_files
@@ -50,8 +51,13 @@ ipx::package_project -root_dir $ip_dir -vendor user.org -library user -taxonomy 
 set core [ipx::current_core]
 set_property name         CPU                          $core
 set_property display_name "CPU"                        $core
-set_property description  "RV32I out-of-order core, internal instruction memory, AXI4-Lite data master" $core
+set_property description  "RV32I out-of-order core, internal instruction and data memory, AXI4 memory slaves, AXI4-Lite peripheral master" $core
 set_property version      2.0                          $core
+
+# Memory slaves are memory, not registers (DMA address spaces accept only memory)
+foreach mm {s_axi_imem s_axi_dmem} {
+    set_property usage memory [ipx::get_address_blocks reg0 -of_objects [ipx::get_memory_maps $mm -of_objects $core]]
+}
 
 ipx::create_xgui_files $core
 ipx::update_checksums  $core

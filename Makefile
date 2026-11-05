@@ -32,15 +32,17 @@ CFG_NAMES := $(shell sed -n -E 's/^\s*(\w+)\s*=.*/\1/p' $(CFG_FILES))
 $(foreach v,$(CFG_NAMES),$(eval export CFG_$(v) = $$($(v))))
 
 # Required values per file, then allowed values
-REQ_CPU      = CORE_GENERICS DATA_WIDTH ARCH_ADDR_BITS NUM_PHYS_REGS ROB_DEPTH IQ_DEPTH LSQ_DEPTH WADDR \
+REQ_CPU      = CORE_GENERICS DATA_WIDTH ARCH_ADDR_BITS NUM_PHYS_REGS ROB_DEPTH IQ_DEPTH LSQ_DEPTH \
+               IMEM_ADDR_BITS DMEM_BASE DMEM_ADDR_BITS DMEM_RD_LATENCY \
                SYNTH_GENERICS RF_RAM_STYLE IQ_RAM_STYLE SYNTH_CLK_MHZ SYNTH_PART
-REQ_PLATFORM = CPU_CLK_MHZ DMEM_BASE DMEM_SIZE GPIO_BASE GPIO_WIDTH DEFAULT_FW
+REQ_PLATFORM = CPU_CLK_MHZ GPIO_BASE GPIO_WIDTH DEFAULT_FW
 REQ_BOARD    = PART BOARD_CLK_MHZ
 REQ_TOOLS    = VIVADO CROSS PYTHON CFLAGS MAX_JOBS IMPL_EFFORT SYNTH_DIRECTIVE OPT_DIRECTIVE PLACE_DIRECTIVE \
                PHYS_OPT_DIRECTIVE ROUTE_DIRECTIVE
-REQ_TB       = TB_GENERICS TB_CLK_NS IDLE_STOP_CYCLES MAX_CYCLES DATA_MEM_BITS DATA_MEM_MIN_WAIT DATA_MEM_MAX_WAIT
+REQ_TB       = TB_GENERICS TB_CLK_NS IDLE_STOP_CYCLES MAX_CYCLES DATA_MEM_MIN_WAIT DATA_MEM_MAX_WAIT
 require = $(foreach v,$(2),$(if $(strip $($(v))),,$(error $(1): $(v) missing)))
 allow   = $(if $(filter $(3),$($(2))),,$(error $(1): $(2) = $($(2)), allowed: $(3)))
+positive = $(if $(shell echo '$($(2))' | grep -E '^[1-9][0-9]*$$'),,$(error $(1): $(2) = $($(2)), allowed: integer 1 or more))
 $(call require,$(CONFIG),$(REQ_CPU))
 $(call require,fpga/platforms/$(PLATFORM)/$(PLATFORM).mk,$(REQ_PLATFORM))
 $(call require,fpga/boards/$(BOARD)/board.mk,$(REQ_BOARD))
@@ -48,6 +50,7 @@ $(call require,tools/tools.mk,$(REQ_TOOLS))
 $(call require,tb/tb.mk,$(REQ_TB))
 $(call allow,$(CONFIG),RF_RAM_STYLE,auto distributed block registers)
 $(call allow,$(CONFIG),IQ_RAM_STYLE,auto distributed block registers)
+$(call positive,$(CONFIG),DMEM_RD_LATENCY)
 $(call allow,tools/tools.mk,IMPL_EFFORT,default performance)
 
 # Vivado from tools/tools.mk, or found with locate
@@ -121,14 +124,17 @@ NP_SNAPSHOT = tb_np
 NP_STAMP    = $(NP_DIR)/.$(NP_SNAPSHOT).stamp
 NP_PROGRAM  = $(CURDIR)/$(TEST_DIR)/instr_mem.txt
 NP_DATA     = $(CURDIR)/$(TEST_DIR)/data_mem.txt
-NP_GENERICS = $(foreach g,$(CORE_GENERICS) $(TB_GENERICS),-generic_top "$(g)=$($(g))")
+# Hex values (0x...) as decimal for xelab
+np_value    = $(if $(filter 0x%,$(1)),$(shell printf %d $(1)),$(1))
+NP_GENERICS = $(foreach g,$(CORE_GENERICS) $(TB_GENERICS),-generic_top "$(g)=$(call np_value,$($(g)))")
 
 # Sources in compile order
 NP_SRCS = \
 	RV32I/rtl/packages/alu_ops_pkg.vhd \
 	RV32I/rtl/packages/instr_types_pkg.vhd \
 	RV32I/rtl/packages/txt_util.vhd \
-	RV32I/rtl/BRAM_byte_addressable.vhd \
+	RV32I/rtl/mem/BRAM_byte_addressable.vhd \
+	RV32I/rtl/mem/axi_bram_ctrl.vhd \
 	RV32I/rtl/control_path/ctrl_decoder.vhd \
 	RV32I/rtl/control_path/alu_decoder.vhd \
 	RV32I/rtl/control_path/branch_predictor.vhd \
@@ -147,10 +153,9 @@ NP_SRCS = \
 	RV32I/rtl/data_path/branch_unit.vhd \
 	RV32I/rtl/data_path/cdb.vhd \
 	RV32I/rtl/data_path/data_path.vhd \
-	RV32I/rtl/axi_lite_master.vhd \
+	RV32I/rtl/mem/axi_lite_master.vhd \
 	RV32I/rtl/riscv_top.vhd \
 	RV32I/rtl/riscv_top_mem.vhd \
-	tb/cpu/axi_lite_mem_model.vhd \
 	tb/cpu/riscv_top_tb.vhd
 
 # Generics of the last snapshot, a new value rebuilds it
@@ -162,6 +167,7 @@ $(NP_DIR)/config.used: FORCE
 $(NP_STAMP): $(NP_SRCS) $(NP_DIR)/config.used
 	@echo "Building simulation snapshot (non-project)"
 	@mkdir -p $(NP_DIR) $(TEST_DIR)
+	@touch $(TEST_DIR)/instr_mem.txt $(TEST_DIR)/data_mem.txt
 	@cd $(NP_DIR) && $(XBIN)xvhdl -2008 $(addprefix $(CURDIR)/,$(NP_SRCS)) > /dev/null || { grep -E 'ERROR' xvhdl.log; exit 1; }
 	@cd $(NP_DIR) && $(XBIN)xelab -debug typical $(NP_GENERICS) -generic_top "PROGRAM_FILE=$(NP_PROGRAM)" -generic_top "DATA_FILE=$(NP_DATA)" work.riscv_top_tb -s $(NP_SNAPSHOT) > /dev/null || { grep -E 'ERROR' xelab.log; exit 1; }
 	@touch $@
@@ -215,6 +221,7 @@ $(SHA3_XML): $(wildcard fpga/ip/sha3/*.vhd) fpga/rtl/axi_lite_regs.vhd fpga/ip/s
 	@START_TIME=$$(date +%s); \
 	$(VIVADO_BIN) -mode batch -nojournal -log out/fpga/ip_package/sha3.log -source fpga/ip/sha3/package_ip.tcl > /dev/null || { grep -E '^ERROR' out/fpga/ip_package/sha3.log; exit 1; }; \
 	echo "SHA3 IP packaged in $$(( $$(date +%s) - START_TIME )) s"
+FPGA_IP_XML = $(foreach ip,$(FPGA_IPS),out/fpga/ip_repo/$(ip)/component.xml)
 
 # Firmware for the platform, default when FW is missing
 fw-build:
@@ -223,17 +230,18 @@ fw-build:
 	if [ ! -f sw/fw/$(PLATFORM)/$$fw.c ]; then \
 		echo "FW $$fw not found in sw/fw/$(PLATFORM), using $(DEFAULT_FW)"; fw=$(DEFAULT_FW); \
 	fi; \
-	sw/common/build.sh sw/fw/$(PLATFORM)/$$fw.c $(FW_OUT)/$$fw fpga/platforms/$(PLATFORM)/$(PLATFORM).mk && \
+	sw/common/build.sh sw/fw/$(PLATFORM)/$$fw.c $(FW_OUT)/$$fw fpga/platforms/$(PLATFORM)/$(PLATFORM).mk --fw && \
 	echo $$fw > $(FW_OUT)/selected
 
 # Platform regression, or firmware run with FW: plain xsim on the last snapshot when its inputs are unchanged
 BD_XSIM = $(BD_SIM_OUT)/sim/sim.sim/sim_1/behav/xsim
 BD_KEY  = $(BD_SIM_OUT)/snapshot.key
-BD_DEPS = $(CPU_RTL) $(wildcard fpga/rtl/*.vhd) fpga/platforms/$(PLATFORM)/platform_bd.tcl \
+BD_DEPS = $(CPU_RTL) $(TCL_DIR)/package_ip.tcl $(wildcard fpga/rtl/*.vhd $(foreach ip,$(FPGA_IPS),fpga/ip/$(ip)/*)) \
+          fpga/platforms/$(PLATFORM)/platform_bd.tcl \
           tb/fpga/$(PLATFORM)/platform_tb.vhd $(TB_TCL)/sim_bd.tcl
 BD_CFG  = $(foreach v,$(CFG_NAMES),$(v)=$($(v)))
 fpga-sim: RES_DIR = $(BD_SIM_OUT)
-fpga-sim: $(IP_XML) $(if $(FW),fw-build,clear-results)
+fpga-sim: $(IP_XML) $(FPGA_IP_XML) $(if $(FW),fw-build,clear-results)
 	@mkdir -p $(BD_SIM_OUT)
 	@START_TIME=$$(date +%s); \
 	export TEST=$(TEST) FW_DIR=$(if $(FW),$(CURDIR)/$(FW_OUT)/$$(cat $(FW_OUT)/selected)); \
@@ -252,7 +260,7 @@ fpga-sim: $(IP_XML) $(if $(FW),fw-build,clear-results)
 
 # Platform bitstream with the firmware
 BIT_DIR = $(FPGA_OUT)/bitstream
-fpga-bitstream: $(IP_XML) fw-build
+fpga-bitstream: $(IP_XML) $(FPGA_IP_XML) fw-build
 	@mkdir -p $(BIT_DIR)
 	@fw=$$(cat $(FW_OUT)/selected); START_TIME=$$(date +%s); \
 	$(VIVADO_BIN) -mode batch -nojournal -log $(BIT_DIR)/vivado.log -source $(FPGA_TCL)/bitstream.tcl \

@@ -65,7 +65,7 @@ def hw_line(name, timing_rpt, util_rpt, extra=''):
 print(tests_line('cpu sim', os.path.join(OUT, 'tb', 'cpu')))
 synth = os.path.join(OUT, 'RV32I', 'synth')
 print(hw_line('cpu synth', os.path.join(synth, 'timing_impl.rpt'), os.path.join(synth, 'utilization_impl.rpt')))
-for d in sorted(glob.glob(os.path.join(OUT, 'tb', 'fpga', '*'))):
+for d in sorted(glob.glob(os.path.join(OUT, 'tb', 'fpga', '*_*'))):
     print(tests_line('fpga sim ' + os.path.basename(d), d))
 for d in sorted(glob.glob(os.path.join(OUT, 'fpga', '*', 'bitstream'))):
     fw_file = os.path.join(d, 'firmware')

@@ -36,8 +36,9 @@ if { [file exists $project_file] } {
 
     add_files -norecurse $src/rtl/riscv_top_mem.vhd 
     add_files -norecurse $src/rtl/riscv_top.vhd 
-    add_files -norecurse $src/rtl/axi_lite_master.vhd
-    add_files -norecurse $src/rtl/BRAM_byte_addressable.vhd
+    add_files -norecurse $src/rtl/mem/axi_lite_master.vhd
+    add_files -norecurse $src/rtl/mem/BRAM_byte_addressable.vhd
+    add_files -norecurse $src/rtl/mem/axi_bram_ctrl.vhd
     add_files -norecurse $src/rtl/data_path/immediate.vhd 
     add_files -norecurse $src/rtl/data_path/ALU_simple.vhd 
     add_files -norecurse $src/rtl/data_path/LSU.vhd
@@ -59,7 +60,6 @@ if { [file exists $project_file] } {
     add_files -norecurse $src/rtl/packages/alu_ops_pkg.vhd 
     add_files -norecurse $src/rtl/packages/instr_types_pkg.vhd
     add_files -norecurse $src/rtl/packages/txt_util.vhd
-    add_files -fileset sim_1 -norecurse $tb/cpu/axi_lite_mem_model.vhd
     add_files -fileset sim_1 -norecurse $tb/cpu/riscv_top_tb.vhd
 }
 

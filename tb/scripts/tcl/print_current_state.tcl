@@ -2,7 +2,7 @@
 
 set testname [lindex $argv 0]
 
-set dp [expr {[info exists ::dp] && $::dp ne "" ? $::dp : "/riscv_top_tb/TOP_RISCV_1/data_path_1"}]
+set dp [expr {[info exists ::dp] && $::dp ne "" ? $::dp : "/riscv_top_tb/dut/CPU/data_path_1"}]
 
 file mkdir $::results/$::test
 set dump_file [open "$::results/$::test/sim_vector_regs.txt" w]

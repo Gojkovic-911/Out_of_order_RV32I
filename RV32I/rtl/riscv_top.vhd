@@ -20,26 +20,15 @@ entity riscv_top is
       -- Instruction memory port
       instr_mem_addr_o    : out std_logic_vector (31 downto 0);
       instr_mem_data_i    : in  std_logic_vector(31 downto 0);
-      -- AXI4-Lite data port
-      m_axi_awaddr        : out std_logic_vector(31 downto 0);
-      m_axi_awprot        : out std_logic_vector(2 downto 0);
-      m_axi_awvalid       : out std_logic;
-      m_axi_awready       : in  std_logic;
-      m_axi_wdata         : out std_logic_vector(31 downto 0);
-      m_axi_wstrb         : out std_logic_vector(3 downto 0);
-      m_axi_wvalid        : out std_logic;
-      m_axi_wready        : in  std_logic;
-      m_axi_bresp         : in  std_logic_vector(1 downto 0);
-      m_axi_bvalid        : in  std_logic;
-      m_axi_bready        : out std_logic;
-      m_axi_araddr        : out std_logic_vector(31 downto 0);
-      m_axi_arprot        : out std_logic_vector(2 downto 0);
-      m_axi_arvalid       : out std_logic;
-      m_axi_arready       : in  std_logic;
-      m_axi_rdata         : in  std_logic_vector(31 downto 0);
-      m_axi_rresp         : in  std_logic_vector(1 downto 0);
-      m_axi_rvalid        : in  std_logic;
-      m_axi_rready        : out std_logic
+      -- Data memory port: request valid/ready, response pulse
+      data_mem_req_o      : out std_logic;
+      data_mem_ready_i    : in  std_logic;
+      data_mem_we_o       : out std_logic;
+      data_mem_addr_o     : out std_logic_vector(31 downto 0);
+      data_mem_wdata_o    : out std_logic_vector(31 downto 0);
+      data_mem_be_o       : out std_logic_vector(MEM_BYTES-1 downto 0);
+      data_mem_rsp_i      : in  std_logic;
+      data_mem_rdata_i    : in  std_logic_vector(31 downto 0)
       );
 end entity;
     
@@ -81,16 +70,6 @@ architecture structural of riscv_top is
     signal flush_pipe_s             : std_logic;
     signal if_id_flush_s            : std_logic;
 
-    -- Core data port
-    signal dmem_req_s               : std_logic;
-    signal dmem_ready_s             : std_logic;
-    signal dmem_we_s                : std_logic;
-    signal dmem_rsp_s               : std_logic;
-    signal dmem_be_s                : std_logic_vector(MEM_BYTES-1 downto 0);
-    signal dmem_addr_s              : std_logic_vector(31 downto 0);
-    signal dmem_wdata_s             : std_logic_vector(31 downto 0);
-    signal dmem_rdata_s             : std_logic_vector(31 downto 0);
-
 begin
     
     data_path_1 : entity work.data_path
@@ -116,14 +95,14 @@ begin
             instr_mem_data_i         => instr_mem_data_i,
             instruction_o            => instruction_s,
             
-            data_mem_req_o           => dmem_req_s,
-            data_mem_ready_i         => dmem_ready_s,
-            data_mem_we_o            => dmem_we_s,
-            data_mem_rsp_i           => dmem_rsp_s,
-            data_mem_addr_o          => dmem_addr_s,
-            data_mem_wdata_o         => dmem_wdata_s,
-            data_mem_rdata_i         => dmem_rdata_s,
-            data_mem_be_o            => dmem_be_s,
+            data_mem_req_o           => data_mem_req_o,
+            data_mem_ready_i         => data_mem_ready_i,
+            data_mem_we_o            => data_mem_we_o,
+            data_mem_rsp_i           => data_mem_rsp_i,
+            data_mem_addr_o          => data_mem_addr_o,
+            data_mem_wdata_o         => data_mem_wdata_o,
+            data_mem_rdata_i         => data_mem_rdata_i,
+            data_mem_be_o            => data_mem_be_o,
             
             decode_instr_format_i    => decode_instr_format_s,
             fetch_is_jump_i         => fetch_is_jump_s,
@@ -192,38 +171,5 @@ begin
             flush_pipe_o             => flush_pipe_s,
             if_id_flush_o            => if_id_flush_s
             );
-
-    -- Data port to AXI
-    axi_bridge : entity work.axi_lite_master
-        port map (
-            clk           => clk,
-            reset         => reset,
-            req_valid_i   => dmem_req_s,
-            req_ready_o   => dmem_ready_s,
-            req_we_i      => dmem_we_s,
-            req_addr_i    => dmem_addr_s,
-            req_wdata_i   => dmem_wdata_s,
-            req_be_i      => dmem_be_s,
-            rsp_valid_o   => dmem_rsp_s,
-            rsp_rdata_o   => dmem_rdata_s,
-            m_axi_awaddr  => m_axi_awaddr,
-            m_axi_awprot  => m_axi_awprot,
-            m_axi_awvalid => m_axi_awvalid,
-            m_axi_awready => m_axi_awready,
-            m_axi_wdata   => m_axi_wdata,
-            m_axi_wstrb   => m_axi_wstrb,
-            m_axi_wvalid  => m_axi_wvalid,
-            m_axi_wready  => m_axi_wready,
-            m_axi_bresp   => m_axi_bresp,
-            m_axi_bvalid  => m_axi_bvalid,
-            m_axi_bready  => m_axi_bready,
-            m_axi_araddr  => m_axi_araddr,
-            m_axi_arprot  => m_axi_arprot,
-            m_axi_arvalid => m_axi_arvalid,
-            m_axi_arready => m_axi_arready,
-            m_axi_rdata   => m_axi_rdata,
-            m_axi_rresp   => m_axi_rresp,
-            m_axi_rvalid  => m_axi_rvalid,
-            m_axi_rready  => m_axi_rready);
 
 end architecture;

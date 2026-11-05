@@ -1,15 +1,13 @@
-# Simple platform: CPU, data memory, GPIO, clock wizard, reset
-# Format: NAME = value (comments on their own line, never after a value).
+# Simple platform: CPU (with its memories), GPIO, clock wizard, reset
 
-# CPU and bus clock out of clk_wiz (MHz)
+# CPU clock from clk_wiz: MHz
 CPU_CLK_MHZ   = 120
 
-# Address map of the CPU data port (firmware uses these addresses)
-DMEM_BASE     = 0x00000000
-DMEM_SIZE     = 16K
+# GPIO address on m_axi_lite
 GPIO_BASE     = 0x40000000
-# GPIO outputs (LEDs)
+
+# GPIO outputs: 1 to 4 (LD0-LD3)
 GPIO_WIDTH    = 4
 
-# Firmware from sw/fw/simple/ when FW is not given or not found
+# Firmware: in sw/fw/simple/
 DEFAULT_FW    = led_blink

@@ -18,11 +18,13 @@ if {![file exists $prog]} {
 }
 
 create_project project $prj_dir -part $part -force
-# Xilinx IPs from the IP cache; our RTL entries (CPU, data memory) are dropped, so they are always synthesized
+# Xilinx IPs from the IP cache; ours (CPU, FPGA_IPS) are dropped, so they are always synthesized
 set ip_cache $root/out/fpga/ip_cache
 file mkdir $ip_cache
 foreach d [glob -nocomplain -types d $ip_cache/*] {
-    if {[exec find $d -name "*CPU_0*" -o -name "*dmem_0*"] ne ""} { file delete -force $d }
+    foreach cell [concat CPU $cfg(FPGA_IPS)] {
+        if {[exec find $d -name "*${cell}_0*"] ne ""} { file delete -force $d; break }
+    }
 }
 config_ip_cache -use_cache_location $ip_cache
 set_property ip_repo_paths [list $out_dir/ip_repo $fpga_ip_repo] [current_project]
@@ -67,8 +69,8 @@ report_timing_summary -file $out/timing.rpt
 write_paths $out/paths.txt
 report_power -file $out/power.rpt
 write_mem_mmi $out/mem.mmi $part [list \
-    imem *INSTR_MEM* 0          [expr {1 << $cfg(WADDR)}] \
-    dmem *dmem_0*    $dmem_base [expr {1 << [mem_bits $dmem_size]}]]
+    imem *INSTR_MEM* 0          [expr {1 << $cfg(IMEM_ADDR_BITS)}] \
+    dmem *DATA_MEM*  $dmem_base $dmem_size]
 file copy -force [glob $prj_dir/project.runs/impl_1/*.bit] $out/
 puts "Bitstream: [glob $out/*.bit]"
 

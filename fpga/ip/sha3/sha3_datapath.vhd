@@ -2,7 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
--- Keccak-f[1600] state, one step per cycle, and the 17-lane input block
+-- Keccak-f[1600] state, one round per cycle, and the 17-lane input block
 entity sha3_datapath is
     port (
         clk       : in  std_logic;
@@ -11,11 +11,7 @@ entity sha3_datapath is
         -- Steps from sha3_control, at most one per cycle
         clear     : in  std_logic;
         absorb    : in  std_logic;
-        theta1    : in  std_logic;
-        theta2    : in  std_logic;
-        rhopi     : in  std_logic;
-        chi       : in  std_logic;
-        iota      : in  std_logic;
+        rnd       : in  std_logic;
         round     : in  unsigned(4 downto 0);
 
         -- Input block, 17 lanes in order
@@ -60,14 +56,14 @@ architecture rtl of sha3_datapath is
     end function;
 
     signal a_s    : state_t;
-    signal b_s    : state_t;
-    signal c_s    : row_t;
     signal blk_s  : block_t;
     signal fill_s : unsigned(4 downto 0);
 begin
 
-    -- State A(x, y), B after rho and pi, column parity C
+    -- State A(x, y); theta, rho, pi, chi, iota combinational within one round
     keccak: process(clk)
+        variable c, d : row_t;
+        variable b    : state_t;
     begin
         if rising_edge(clk) then
             if clear = '1' then
@@ -76,33 +72,24 @@ begin
                 for w in 0 to 16 loop
                     a_s(w mod 5, w / 5) <= a_s(w mod 5, w / 5) xor blk_s(w);
                 end loop;
-            elsif theta2 = '1' then
+            elsif rnd = '1' then
+                for x in 0 to 4 loop
+                    c(x) := a_s(x, 0) xor a_s(x, 1) xor a_s(x, 2) xor a_s(x, 3) xor a_s(x, 4);
+                end loop;
+                for x in 0 to 4 loop
+                    d(x) := c((x + 4) mod 5) xor rotl(c((x + 1) mod 5), 1);
+                end loop;
                 for x in 0 to 4 loop
                     for y in 0 to 4 loop
-                        a_s(x, y) <= a_s(x, y) xor c_s((x + 4) mod 5) xor rotl(c_s((x + 1) mod 5), 1);
+                        b(y, (2 * x + 3 * y) mod 5) := rotl(a_s(x, y) xor d(x), RHO(x, y));
                     end loop;
                 end loop;
-            elsif chi = '1' then
                 for x in 0 to 4 loop
                     for y in 0 to 4 loop
-                        a_s(x, y) <= b_s(x, y) xor (not b_s((x + 1) mod 5, y) and b_s((x + 2) mod 5, y));
+                        a_s(x, y) <= b(x, y) xor (not b((x + 1) mod 5, y) and b((x + 2) mod 5, y));
                     end loop;
                 end loop;
-            elsif iota = '1' then
-                a_s(0, 0) <= a_s(0, 0) xor RC(to_integer(round));
-            end if;
-
-            if theta1 = '1' then
-                for x in 0 to 4 loop
-                    c_s(x) <= a_s(x, 0) xor a_s(x, 1) xor a_s(x, 2) xor a_s(x, 3) xor a_s(x, 4);
-                end loop;
-            end if;
-            if rhopi = '1' then
-                for x in 0 to 4 loop
-                    for y in 0 to 4 loop
-                        b_s(y, (2 * x + 3 * y) mod 5) <= rotl(a_s(x, y), RHO(x, y));
-                    end loop;
-                end loop;
+                a_s(0, 0) <= b(0, 0) xor (not b(1, 0) and b(2, 0)) xor RC(to_integer(round));
             end if;
         end if;
     end process;

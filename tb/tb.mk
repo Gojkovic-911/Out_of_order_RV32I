@@ -1,17 +1,18 @@
 # Testbench configuration
-# Format: NAME = value (comments on their own line, never after a value).
 
-# ---- CPU testbench: generics of riscv_top_tb ----
-TB_GENERICS       = TB_CLK_NS IDLE_STOP_CYCLES DATA_MEM_BITS DATA_MEM_MIN_WAIT DATA_MEM_MAX_WAIT
+# Generics of riscv_top_tb
+TB_GENERICS       = TB_CLK_NS IDLE_STOP_CYCLES DATA_MEM_MIN_WAIT DATA_MEM_MAX_WAIT
 
-# Clock period (ns)
+# Testbench clock period: ns
 TB_CLK_NS         = 100
-# Fetched zero words that end a test
+
+# Test end: cycles of fetched zero words
 IDLE_STOP_CYCLES  = 200
-# Upper limit of one test (cycles)
+
+# Test limit: cycles
 MAX_CYCLES        = 1000000
-# AXI data memory model: 2^DATA_MEM_BITS bytes
-DATA_MEM_BITS     = 14
-# AXI data memory model: MIN..MAX random wait cycles per handshake
+
+# DMEM wait: MIN..MAX random cycles per access, simulation only
+# 0..0: fixed latency; longer waits stress the LSQ, lower the IPC
 DATA_MEM_MIN_WAIT = 0
 DATA_MEM_MAX_WAIT = 3

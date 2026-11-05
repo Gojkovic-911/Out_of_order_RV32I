@@ -47,7 +47,7 @@ set max_jobs      $cfg(MAX_JOBS)
 set board_clk_mhz $cfg(BOARD_CLK_MHZ)
 set cpu_clk_mhz   $cfg(CPU_CLK_MHZ)
 set dmem_base     $cfg(DMEM_BASE)
-set dmem_size     $cfg(DMEM_SIZE)
+set dmem_size     [expr {1 << $cfg(DMEM_ADDR_BITS)}]
 set gpio_base     $cfg(GPIO_BASE)
 
 set_param general.maxThreads $max_jobs
@@ -78,13 +78,15 @@ proc write_paths {file} {
     close $fh
 }
 
-# Generic NAME=value pairs
+# Generic NAME=value pairs, hex 0x... as decimal
 proc cfg_generics {args} {
     global cfg
     set pairs {}
     foreach group $args {
         foreach name $cfg($group) {
-            lappend pairs "$name=$cfg($name)"
+            set v $cfg($name)
+            if {[string match 0x* $v]} { set v [expr {$v}] }
+            lappend pairs "$name=$v"
         }
     }
     return $pairs

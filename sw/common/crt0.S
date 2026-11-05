@@ -14,5 +14,10 @@ _start:
     addi t0, t0, 4
     j    1b
 2:  call main
+#ifdef FW
+    # Firmware: stay here after main
+3:  j    3b
+#else
     # Result stays in a0, zero words after the code stop the testbench
     j    __text_end
+#endif
