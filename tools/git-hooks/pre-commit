@@ -1,0 +1,7 @@
+#!/bin/bash
+# Commit only a state that passed make verify (make commit does both)
+. "$(dirname "$0")/verified.sh"
+key=$(tree_key "$(git write-tree)")
+sealed "$key" && exit 0
+echo "Commit refused: this state did not pass make verify. Use make commit MSG=\"...\"." >&2
+exit 1

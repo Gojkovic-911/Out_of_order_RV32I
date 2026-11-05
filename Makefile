@@ -74,7 +74,7 @@ DOMAIN  = $(firstword $(filter $(DOMAINS),$(MAKECMDGOALS)))
 ACTION  = $(firstword $(filter $(ACTIONS),$(MAKECMDGOALS)))
 
 .PHONY: help check $(DOMAINS) $(ACTIONS) cpu-sim cpu-sim-np cpu-sim-prj cpu-synth fpga-sim fpga-bitstream \
-	fpga-fw-update fw-build clear-results ip impl sweep res clean FORCE
+	fpga-fw-update fw-build clear-results ip impl sweep res verify commit clean FORCE
 
 # Print commands and options
 help:
@@ -88,7 +88,9 @@ help:
 	@echo "  make fpga bitstream <FW=...>               bitstream with the firmware"
 	@echo "  make fpga fw-update FW=<name>              firmware into the built bitstream"
 	@echo ""
-	@echo "  make check                                 tools and configuration"
+	@echo "  make verify                                every command and configuration, seal for commit (~1 h)"
+	@echo "  make commit        MSG=\"...\"               verify (unless sealed), commit and push to main"
+	@echo "  make check                                 tools and configuration, git hooks"
 	@echo "  make res                                   status of all runs"
 	@echo "  make clean                                 remove out/"
 
@@ -102,7 +104,19 @@ check:
 	[ -f "$$($(CROSS)-gcc -march=rv32i -mabi=ilp32 -print-libgcc-file-name 2> /dev/null)" ] || \
 		{ echo "tools/tools.mk: $(CROSS)-gcc has no rv32i/ilp32 libgcc"; ok=0; }; \
 	$(PYTHON) -c "import playwright" 2> /dev/null || { echo "tools/tools.mk: $(PYTHON) has no playwright"; ok=0; }; \
+	git config core.hooksPath tools/git-hooks; \
 	[ $$ok = 1 ]
+
+# Every make command and configuration; a passing run seals the state for commit and push
+verify:
+	@./$(TB_SCRIPTS)/verify.sh
+
+# Commit and push a verified state; verification is skipped when the state is already sealed
+MSG ?=
+commit: check
+	@[ -n "$(MSG)" ] || { echo 'Use: make commit MSG="message"'; exit 1; }
+	@. tools/git-hooks/verified.sh; sealed "$$(tree_key "$$(work_tree)")" && echo "State already verified" || ./$(TB_SCRIPTS)/verify.sh
+	@git add -A && git commit -q -m "$(MSG)" && git push -q origin main && git log --oneline -1
 
 # Dispatch: make cpu sim -> cpu-sim
 $(DOMAINS): check

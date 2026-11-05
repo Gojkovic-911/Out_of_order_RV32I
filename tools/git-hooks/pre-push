@@ -1,0 +1,12 @@
+#!/bin/bash
+# Push only commits whose tree passed make verify
+. "$(dirname "$0")/verified.sh"
+while read -r local_ref local_sha remote_ref remote_sha; do
+    [ "$local_sha" = 0000000000000000000000000000000000000000 ] && continue
+    for c in $(git rev-list "$local_sha" --not --remotes); do
+        sealed "$(tree_key "$c^{tree}")" && continue
+        echo "Push refused: commit $(git rev-parse --short "$c") did not pass make verify." >&2
+        exit 1
+    done
+done
+exit 0
