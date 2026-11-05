@@ -23,4 +23,4 @@ Simple platform:
 | Flip-flop | 2 856 | 35 200 | 8 % |
 | Block RAM (36 Kb) | 9.5 | 60 | 16 % |
 
-Timing is met at 120 MHz (worst slack +0.16 ns); estimated power 0.261 W (0.120 W clock wizard MMCM).
+Timing is met at 120 MHz (worst slack +0.25 ns); estimated power 0.265 W (0.120 W clock wizard MMCM).

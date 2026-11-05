@@ -14,7 +14,7 @@ Out-of-order RV32I core, configured in [cpu.mk](cpu.mk)
 - Central Data Bus (CDB)
 - Instruction & Data TCMs inside the CPU, updated in the generated bitstream through updatemem
 - AXI4-Lite master for the peripherals (LSU targets outside DMEM)
-- AXI4 slaves on port B of both IMEM & DMEM memories, for DMA and JTAG access, with their own reset
+- AXI4 slaves on port B of both IMEM & DMEM memories for DMA and JTAG access, with their own reset
 
 ## Configuration
 
